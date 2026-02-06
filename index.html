@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Todo</title>
+    <style>
+        body { font-family: sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; background: #f4f4f9; }
+        h2 { border-bottom: 2px solid #ddd; padding-bottom: 10px; color: #333; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input[type="text"] { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 15px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px; }
+        ul { list-style: none; padding: 0; }
+        li { background: white; margin-bottom: 5px; padding: 10px; border-radius: 4px; display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        li.done span { text-decoration: line-through; color: #888; }
+        .date-tag { font-size: 0.8em; color: #666; margin-left: auto; padding-right: 10px; }
+        .delete-btn { color: #dc3545; cursor: pointer; font-weight: bold; border: none; background: none; }
+        input[type="checkbox"] { margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="input-group">
+        <input type="text" id="taskInput" placeholder="Add a task...">
+        <input type="date" id="dateInput">
+        <button onclick="addTask()">Add</button>
+    </div>
+
+    <h2>☀️ Today</h2>
+    <ul id="todayList"></ul>
+
+    <h2>🗓️ Upcoming</h2>
+    <ul id="upcomingList"></ul>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('myTasks')) || [];
+
+        function addTask() {
+            const text = document.getElementById('taskInput').value;
+            const date = document.getElementById('dateInput').value;
+            if (!text) return;
+
+            tasks.push({ text, date, done: false, id: Date.now() });
+            document.getElementById('taskInput').value = '';
+            render();
+        }
+
+        function toggle(id) {
+            tasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+            render();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            render();
+        }
+
+        function render() {
+            localStorage.setItem('myTasks', JSON.stringify(tasks));
+            const todayList = document.getElementById('todayList');
+            const upcomingList = document.getElementById('upcomingList');
+            todayList.innerHTML = '';
+            upcomingList.innerHTML = '';
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            tasks.forEach(t => {
+                const li = document.createElement('li');
+                if (t.done) li.className = 'done';
+                li.innerHTML = `
+                    <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggle(${t.id})">
+                    <span>${t.text}</span>
+                    <span class="date-tag">${t.date || ''}</span>
+                    <button class="delete-btn" onclick="deleteTask(${t.id})">✕</button>
+                `;
+
+                if (t.date === todayStr || !t.date) {
+                    todayList.appendChild(li);
+                } else {
+                    upcomingList.appendChild(li);
+                }
+            });
+        }
+
+        render();
+    </script>
+</body>
+</html>
