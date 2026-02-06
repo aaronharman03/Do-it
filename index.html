@@ -219,9 +219,9 @@
             document.getElementById('globalScore').style.color = totalScore >= 0 ? "var(--success)" : "var(--danger)";
 
             const milestones = [
-                { id: 'm1', val: 10, name: 'Bronze' },
-                { id: 'm2', val: 50, name: 'Silver' },
-                { id: 'm3', val: 100, name: 'Gold' },
+                { id: 'm1', val: 50, name: 'Bronze' },
+                { id: 'm2', val: 150, name: 'Silver' },
+                { id: 'm3', val: 300, name: 'Gold' },
                 { id: 'm4', val: 500, name: 'Legend' }
             ];
             let nextM = milestones.find(m => totalScore < m.val) || { name: 'Max Level', val: totalScore };
