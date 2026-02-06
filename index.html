@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation Todo</title>
-    <link rel="manifest" href="manifest.json">
+    <title>Consistency Over Perfection</title>
     <style>
-        :root { --success: #28a745; --danger: #dc3545; --primary: #007bff; }
-        body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; transition: background 0.5s; }
+        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; }
+        body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
         
-        /* Global Dashboard */
-        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center; border: 2px solid transparent; }
-        .global-score { font-size: 3rem; font-weight: 900; line-height: 1; margin: 10px 0; }
-        .label { font-size: 0.75rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; }
+        /* Dashboard */
+        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center; border-bottom: 5px solid #ddd; }
+        .global-score { font-size: 3rem; font-weight: 900; margin: 5px 0; transition: color 0.3s; }
+        .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; }
         
         /* Progress Bar */
-        .bar-bg { width: 100%; height: 12px; background: #eee; border-radius: 6px; overflow: hidden; margin: 15px 0 5px; }
-        #progressBar { height: 100%; background: var(--success); width: 0%; transition: width 0.6s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        .bar-bg { width: 100%; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; margin: 10px 0; }
+        #progressBar { height: 100%; background: var(--success); width: 0%; transition: width 0.5s; }
 
         /* Input Section */
         .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
@@ -25,50 +24,50 @@
         input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 16px; }
         button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; }
 
-        /* Task Cards with Dynamic Colors */
+        /* Task Cards */
         ul { list-style: none; padding: 0; }
         li { 
-            background: #fff; margin-bottom: 12px; padding: 16px; border-radius: 14px; 
+            background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; 
             display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
-            transition: all 0.3s ease; border-left: 6px solid #ccc;
+            transition: 0.3s; border-left: 6px solid #ccc;
         }
-        
-        /* Heat Map Border Logic */
-        li.pos-task { border-left-color: var(--success); background: #fafffb; }
-        li.neg-task { border-left-color: var(--danger); background: #fff5f5; }
-        li.done { opacity: 0.6; transform: scale(0.98); }
+        li.pos-task { border-left-color: var(--success); }
+        li.neg-task { border-left-color: var(--danger); }
+        li.done { opacity: 0.6; }
         li.done .task-text { text-decoration: line-through; }
 
-        input[type="checkbox"] { width: 24px; height: 24px; margin-right: 15px; cursor: pointer; accent-color: #000; }
-        .task-text { flex: 1; font-weight: 600; font-size: 16px; }
+        input[type="checkbox"] { width: 24px; height: 24px; margin-right: 12px; cursor: pointer; accent-color: #000; }
         
-        /* Badges */
-        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 8px; margin-left: 8px; display: flex; align-items: center; gap: 3px; }
-        .score-badge { background: #eee; color: #444; }
-        .streak-badge { background: #fff3cd; color: #856404; }
+        /* Minimal Effort Button */
+        .min-effort-btn { 
+            background: #fff3cd; border: 1px solid #ffeeba; color: #856404; 
+            border-radius: 50%; width: 28px; height: 28px; font-size: 14px; 
+            display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; margin-right: 12px; transition: 0.2s;
+        }
+        .min-effort-btn:hover { background: #ffeeba; }
 
-        .del-btn { margin-left: 15px; color: #ddd; cursor: pointer; font-size: 1.2rem; border: none; background: none; transition: 0.2s; }
-        .del-btn:hover { color: var(--danger); }
+        .task-text { flex: 1; font-weight: 600; font-size: 15px; }
+        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; }
+        .score-badge { background: #f0f2f5; color: #444; }
+        .streak-badge { background: #fff3cd; color: #856404; }
+        .del-btn { margin-left: 10px; color: #ddd; cursor: pointer; border: none; background: none; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
-    <div class="dashboard" id="mainDash">
-        <div class="label">Global Reputation</div>
-        <div class="global-score" id="globalScore">0</div>
-        
-        <div style="display:flex; justify-content: space-between; font-size: 0.7rem; font-weight:800;">
-            <span>TODAY'S COMPLETION</span>
-            <span id="progressText">0%</span>
-        </div>
+    <div class="dashboard">
+        <div class="label">Reputation Score</div>
+        <div class="global-score" id="globalScore">0.0</div>
         <div class="bar-bg"><div id="progressBar"></div></div>
+        <div class="label" id="progressText" style="font-size: 0.6rem;">0% TODAY</div>
     </div>
 
     <div class="input-group">
-        <input type="text" id="taskInput" placeholder="Add new mission..." autocomplete="off">
+        <input type="text" id="taskInput" placeholder="Something worth doing..." autocomplete="off">
         <div class="controls">
             <input type="date" id="dateInput">
-            <label style="font-size: 14px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
+            <label style="font-size: 13px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
             <button id="addBtn" onclick="addTask()">ADD</button>
         </div>
     </div>
@@ -80,7 +79,7 @@
     <ul id="upcomingList"></ul>
 
     <script>
-        let tasks = JSON.parse(localStorage.getItem('mega_tasker_v1')) || [];
+        let tasks = JSON.parse(localStorage.getItem('elastic_todos')) || [];
         const getToday = () => new Date().toISOString().split('T')[0];
 
         function addTask() {
@@ -105,18 +104,18 @@
             render();
         }
 
-        function toggle(id) {
+        function complete(id, type) {
             tasks = tasks.map(t => {
                 if (t.id === id) {
-                    t.done = !t.done;
-                    if (t.done) {
+                    if (t.done) return t; // Already processed
+                    t.done = true;
+                    t.lastCompletedDate = getToday();
+                    if (type === 'FULL') {
                         t.individualScore += 1;
                         if (t.isDaily) t.streak += 1;
-                        t.lastCompletedDate = getToday();
-                    } else {
-                        t.individualScore -= 1;
-                        if (t.isDaily) t.streak = Math.max(0, t.streak - 1);
-                        t.lastCompletedDate = null;
+                    } else if (type === 'MINIMAL') {
+                        t.individualScore += 0.1;
+                        // Streak is preserved but not increased
                     }
                 }
                 return t;
@@ -127,17 +126,13 @@
         function render() {
             const today = getToday();
             
-            // --- THE FAIR JUDGE LOGIC ---
             tasks = tasks.map(t => {
-                // 1. Reset Daily Checkboxes at start of new day
+                // Reset daily checkboxes for the new day
                 if (t.isDaily && t.lastCompletedDate !== today) {
                     t.done = false;
                 }
-
-                // 2. Midnight Penalty Audit
-                // We only penalize if TODAY is strictly after the deadline
+                // Penalty Logic: Only for yesterday or older
                 let deadline = t.isDaily ? (t.lastCompletedDate || t.date) : t.date;
-                
                 if (deadline < today && !t.done && !t.penalizedDates.includes(today)) {
                     t.individualScore -= 1;
                     t.streak = 0;
@@ -146,43 +141,34 @@
                 return t;
             });
 
-            localStorage.setItem('mega_tasker_v1', JSON.stringify(tasks));
+            localStorage.setItem('elastic_todos', JSON.stringify(tasks));
 
-            const globalScore = tasks.reduce((acc, t) => acc + t.individualScore, 0);
+            const globalScore = tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1);
             document.getElementById('globalScore').innerText = globalScore;
-            
-            // Dashboard Color Logic
-            const dash = document.getElementById('mainDash');
-            dash.style.borderColor = globalScore >= 0 ? "var(--success)" : "var(--danger)";
             document.getElementById('globalScore').style.color = globalScore >= 0 ? "var(--success)" : "var(--danger)";
 
             const tList = document.getElementById('todayList');
             const uList = document.getElementById('upcomingList');
             tList.innerHTML = ''; uList.innerHTML = '';
 
-            // Daily Progress
             const todayTasks = tasks.filter(t => t.isDaily || t.date === today);
             const doneToday = todayTasks.filter(t => t.done).length;
             const percent = todayTasks.length ? Math.round((doneToday / todayTasks.length) * 100) : 0;
             document.getElementById('progressBar').style.width = percent + "%";
-            document.getElementById('progressText').innerText = percent + "%";
+            document.getElementById('progressText').innerText = percent + "% TODAY";
 
             tasks.forEach(t => {
                 const li = document.createElement('li');
                 if (t.done) li.classList.add('done');
-                
-                // --- HEAT MAP LOGIC ---
                 if (t.individualScore > 0) li.classList.add('pos-task');
-                else if (t.individualScore < 0) li.classList.add('neg-task');
-
-                const streakBadge = t.streak > 0 ? `<span class="badge streak-badge">🔥 ${t.streak}</span>` : '';
-                const scoreColor = t.individualScore >= 0 ? 'var(--success)' : 'var(--danger)';
+                if (t.individualScore < 0) li.classList.add('neg-task');
 
                 li.innerHTML = `
-                    <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggle(${t.id})">
+                    <input type="checkbox" ${t.done ? 'checked disabled' : ''} onchange="complete(${t.id}, 'FULL')">
+                    ${!t.done ? `<div class="min-effort-btn" onclick="complete(${t.id}, 'MINIMAL')" title="Minimal effort - preserve streak">⚡</div>` : ''}
                     <span class="task-text">${t.text}</span>
-                    <span class="badge score-badge" style="color:${scoreColor}">PTS ${t.individualScore}</span>
-                    ${streakBadge}
+                    <span class="badge score-badge">PTS ${t.individualScore.toFixed(1)}</span>
+                    ${t.streak > 0 ? `<span class="badge streak-badge">🔥 ${t.streak}</span>` : ''}
                     <button class="del-btn" onclick="deleteTask(${t.id})">✕</button>
                 `;
 
@@ -191,7 +177,7 @@
         }
 
         function deleteTask(id) {
-            if(confirm("Delete this mission? Points will be lost.")) {
+            if(confirm("Delete task? Points will be lost.")) {
                 tasks = tasks.filter(t => t.id !== id);
                 render();
             }
