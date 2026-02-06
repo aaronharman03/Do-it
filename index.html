@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation Todo</title>
+    <title>Reputation Todo: Milestone Edition</title>
     <style>
-        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; }
+        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; }
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
         
         .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center; border-bottom: 5px solid #ddd; }
@@ -15,6 +15,12 @@
         .bar-bg { width: 100%; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; margin: 10px 0; }
         #progressBar { height: 100%; background: var(--success); width: 0%; transition: width 0.6s ease; }
 
+        /* Milestones Styling */
+        .milestones { display: flex; justify-content: space-around; margin-bottom: 20px; background: white; padding: 15px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .medal { font-size: 1.5rem; filter: grayscale(1); opacity: 0.3; transition: all 0.5s ease; position: relative; }
+        .medal.unlocked { filter: grayscale(0); opacity: 1; transform: scale(1.2); }
+        .medal.unlocked::after { content: '✨'; position: absolute; top: -10px; right: -10px; font-size: 0.8rem; }
+
         .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
         .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
@@ -22,36 +28,21 @@
         button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; font-size: 16px; }
 
         ul { list-style: none; padding: 0; }
-        li { 
-            background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; 
-            display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
-            transition: 0.3s;
-        }
+        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: 0.3s; }
         
-        /* Today List Styles (The Game) */
         #todayList li { border-left: 6px solid #ccc; }
         #todayList li.pos-task { border-left-color: var(--success); background: #fafffb; }
         #todayList li.neg-task { border-left-color: var(--danger); background: #fff5f5; }
         #todayList li.done { opacity: 0.6; }
         #todayList li.done .task-text { text-decoration: line-through; }
-
-        /* Upcoming List Styles (The Plain List) */
         #upcomingList li { border-left: 6px solid #ddd; background: #fafafa; color: #666; }
 
         input[type="checkbox"] { width: 24px; height: 24px; margin-right: 12px; cursor: pointer; accent-color: #000; }
-        
-        .min-effort-btn { 
-            background: #fff3cd; border: 1px solid #ffeeba; color: #856404; 
-            border-radius: 50%; width: 30px; height: 30px; font-size: 16px; 
-            display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; margin-right: 12px; flex-shrink: 0;
-        }
-
+        .min-effort-btn { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; flex-shrink: 0; }
         .task-text { flex: 1; font-weight: 600; font-size: 16px; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
         .score-badge { background: #f0f2f5; color: #444; }
         .streak-badge { background: #fff3cd; color: #856404; }
-        
         .promo-btn { background: #eef; color: var(--primary); border: 1px solid #ccf; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; margin-left: 10px; }
         .del-btn { margin-left: 10px; color: #ddd; cursor: pointer; border: none; background: none; font-size: 1.2rem; }
     </style>
@@ -61,6 +52,14 @@
     <div class="dashboard">
         <div class="label">Reputation Score</div>
         <div class="global-score" id="globalScore">0.0</div>
+        
+        <div class="milestones">
+            <div class="medal" id="m1" title="10 Points: The Spark">🥉</div>
+            <div class="medal" id="m2" title="50 Points: Habitual">🥈</div>
+            <div class="medal" id="m3" title="100 Points: Unstoppable">🥇</div>
+            <div class="medal" id="m4" title="500 Points: The Legend">👑</div>
+        </div>
+
         <div class="bar-bg"><div id="progressBar"></div></div>
         <div class="label" id="progressText" style="font-size: 0.6rem;">0% TODAY</div>
     </div>
@@ -74,14 +73,14 @@
         </div>
     </div>
 
-    <h2 class="label">☀️ Active Today (Game On)</h2>
+    <h2 class="label">☀️ Active Today</h2>
     <ul id="todayList"></ul>
 
-    <h2 class="label">🗓️ Holding Pen (Plain List)</h2>
+    <h2 class="label">🗓️ Holding Pen</h2>
     <ul id="upcomingList"></ul>
 
     <script>
-        let tasks = JSON.parse(localStorage.getItem('final_rep_todos')) || [];
+        let tasks = JSON.parse(localStorage.getItem('final_v3_todos')) || [];
         const getToday = () => new Date().toISOString().split('T')[0];
 
         function addTask() {
@@ -93,7 +92,7 @@
             tasks.push({
                 id: Date.now(),
                 text: input.value.trim(),
-                date: dateInput.value, // Can be empty
+                date: dateInput.value,
                 isDaily: dailyInput.checked,
                 done: false,
                 individualScore: 0,
@@ -134,15 +133,10 @@
             
             tasks = tasks.map(t => {
                 const isTodayActive = (t.isDaily || t.date === today);
-                
-                // 1. Reset Daily Checkboxes for new day
-                if (t.isDaily && t.lastCompletedDate !== today) {
-                    t.done = false;
-                }
+                if (t.isDaily && t.lastCompletedDate !== today) t.done = false;
 
-                // 2. Penalty: ONLY for tasks that were assigned to "Today" in the past
-                // We ignore tasks that have NO date or future dates (the holding pen)
-                if (t.date && t.date < today && isTodayActive && !t.done) {
+                let deadline = t.isDaily ? (t.lastCompletedDate || t.date) : t.date;
+                if (deadline && deadline < today && isTodayActive && !t.done) {
                     if (!t.penalizedDates.includes(today)) {
                         t.individualScore -= 1;
                         t.streak = 0;
@@ -152,11 +146,17 @@
                 return t;
             });
 
-            localStorage.setItem('final_rep_todos', JSON.stringify(tasks));
+            localStorage.setItem('final_v3_todos', JSON.stringify(tasks));
 
-            const totalScore = tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1);
-            document.getElementById('globalScore').innerText = totalScore;
+            const totalScore = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
+            document.getElementById('globalScore').innerText = totalScore.toFixed(1);
             document.getElementById('globalScore').style.color = totalScore >= 0 ? "var(--success)" : "var(--danger)";
+
+            // Milestone Logic
+            if (totalScore >= 10) document.getElementById('m1').classList.add('unlocked');
+            if (totalScore >= 50) document.getElementById('m2').classList.add('unlocked');
+            if (totalScore >= 100) document.getElementById('m3').classList.add('unlocked');
+            if (totalScore >= 500) document.getElementById('m4').classList.add('unlocked');
 
             const tList = document.getElementById('todayList');
             const uList = document.getElementById('upcomingList');
@@ -175,7 +175,7 @@
                 if (isTodayActive) {
                     if (t.done) li.classList.add('done');
                     if (t.individualScore > 0) li.classList.add('pos-task');
-                    if (t.individualScore < 0) li.classList.add('neg-task');
+                    else if (t.individualScore < 0) li.classList.add('neg-task');
 
                     li.innerHTML = `
                         <input type="checkbox" ${t.done ? 'checked disabled' : ''} onchange="complete(${t.id}, 'FULL')">
@@ -187,7 +187,6 @@
                     `;
                     tList.appendChild(li);
                 } else {
-                    // Holding Pen Logic: No logic, just text and a Move button
                     li.innerHTML = `
                         <span class="task-text">${t.text} ${t.date ? `<small>(${t.date})</small>` : ''}</span>
                         <button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>
@@ -199,7 +198,7 @@
         }
 
         function deleteTask(id) {
-            if(confirm("Delete task? History will be erased.")) {
+            if(confirm("Delete task? Score history stays.")) {
                 tasks = tasks.filter(t => t.id !== id);
                 render();
             }
