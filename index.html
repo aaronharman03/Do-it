@@ -3,51 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Todo</title>
+    <title>Simple Daily Todo</title>
     <style>
-        body { font-family: sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; background: #f4f4f9; }
-        h2 { border-bottom: 2px solid #ddd; padding-bottom: 10px; color: #333; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        input[type="text"] { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 8px 15px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 4px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 500px; margin: 40px auto; padding: 20px; background: #f8f9fa; color: #333; }
+        .input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        input[type="text"] { flex: 1; min-width: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .controls { display: flex; gap: 8px; width: 100%; align-items: center; font-size: 0.9em; }
+        button { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; }
+        h2 { font-size: 1.2rem; margin-top: 30px; color: #555; display: flex; justify-content: space-between; }
         ul { list-style: none; padding: 0; }
-        li { background: white; margin-bottom: 5px; padding: 10px; border-radius: 4px; display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        li.done span { text-decoration: line-through; color: #888; }
-        .date-tag { font-size: 0.8em; color: #666; margin-left: auto; padding-right: 10px; }
-        .delete-btn { color: #dc3545; cursor: pointer; font-weight: bold; border: none; background: none; }
-        input[type="checkbox"] { margin-right: 10px; }
+        li { background: white; margin-bottom: 8px; padding: 12px; border-radius: 8px; display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: opacity 0.2s; }
+        li.done { opacity: 0.6; }
+        li.done span { text-decoration: line-through; }
+        .tag { font-size: 0.7em; padding: 2px 6px; border-radius: 4px; margin-left: auto; margin-right: 10px; font-weight: bold; }
+        .daily-tag { background: #e7f3ff; color: #007bff; }
+        .date-tag { background: #eee; color: #666; }
+        .delete-btn { color: #ff4d4d; cursor: pointer; border: none; background: none; font-size: 1.2em; }
+        input[type="checkbox"] { width: 18px; height: 18px; margin-right: 12px; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div class="input-group">
-        <input type="text" id="taskInput" placeholder="Add a task...">
-        <input type="date" id="dateInput">
-        <button onclick="addTask()">Add</button>
+        <input type="text" id="taskInput" placeholder="What needs doing?">
+        <div class="controls">
+            <input type="date" id="dateInput">
+            <label><input type="checkbox" id="dailyInput"> Daily?</label>
+            <button onclick="addTask()" style="margin-left: auto;">Add Task</button>
+        </div>
     </div>
 
-    <h2>☀️ Today</h2>
+    <h2>☀️ Today <small id="todayDate" style="font-weight: normal; font-size: 0.7em;"></small></h2>
     <ul id="todayList"></ul>
 
     <h2>🗓️ Upcoming</h2>
     <ul id="upcomingList"></ul>
 
     <script>
-        let tasks = JSON.parse(localStorage.getItem('myTasks')) || [];
+        let tasks = JSON.parse(localStorage.getItem('myDailyTasks')) || [];
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('todayDate').innerText = new Date().toLocaleDateString();
 
         function addTask() {
             const text = document.getElementById('taskInput').value;
             const date = document.getElementById('dateInput').value;
+            const isDaily = document.getElementById('dailyInput').checked;
             if (!text) return;
 
-            tasks.push({ text, date, done: false, id: Date.now() });
+            tasks.push({ 
+                text, 
+                date, 
+                isDaily, 
+                done: false, 
+                lastCompleted: null, 
+                id: Date.now() 
+            });
+            
             document.getElementById('taskInput').value = '';
+            document.getElementById('dailyInput').checked = false;
             render();
         }
 
         function toggle(id) {
-            tasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+            tasks = tasks.map(t => {
+                if (t.id === id) {
+                    const nowDone = !t.done;
+                    return { ...t, done: nowDone, lastCompleted: nowDone ? todayStr : null };
+                }
+                return t;
+            });
             render();
         }
 
@@ -57,25 +81,36 @@
         }
 
         function render() {
-            localStorage.setItem('myTasks', JSON.stringify(tasks));
+            // Logic: Reset daily tasks if it's a new day
+            tasks = tasks.map(t => {
+                if (t.isDaily && t.lastCompleted !== todayStr) {
+                    return { ...t, done: false };
+                }
+                return t;
+            });
+
+            localStorage.setItem('myDailyTasks', JSON.stringify(tasks));
             const todayList = document.getElementById('todayList');
             const upcomingList = document.getElementById('upcomingList');
             todayList.innerHTML = '';
             upcomingList.innerHTML = '';
 
-            const todayStr = new Date().toISOString().split('T')[0];
-
             tasks.forEach(t => {
                 const li = document.createElement('li');
                 if (t.done) li.className = 'done';
+                
+                const tag = t.isDaily ? `<span class="tag daily-tag">DAILY</span>` : 
+                            t.date ? `<span class="tag date-tag">${t.date}</span>` : '';
+
                 li.innerHTML = `
                     <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggle(${t.id})">
                     <span>${t.text}</span>
-                    <span class="date-tag">${t.date || ''}</span>
+                    ${tag}
                     <button class="delete-btn" onclick="deleteTask(${t.id})">✕</button>
                 `;
 
-                if (t.date === todayStr || !t.date) {
+                // If it's daily or dated today (or blank), it goes to Today.
+                if (t.isDaily || t.date === todayStr || !t.date) {
                     todayList.appendChild(li);
                 } else {
                     upcomingList.appendChild(li);
