@@ -3,43 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Todo</title>
+    <title>Level Up Todo</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        :root { --primary: #007bff; --bg: #f8f9fa; --text: #212529; }
-        body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: var(--bg); color: var(--text); }
+        :root { --primary: #007bff; --bg: #f8f9fa; --text: #212529; --success: #28a745; --danger: #dc3545; }
+        body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: var(--bg); color: var(--text); transition: background 0.5s ease; }
         
-        .input-group { background: white; padding: 16px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 24px; }
+        /* Progress & Score UI */
+        #header-stat { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: bold; }
+        #progress-container { width: 100%; height: 8px; background: #ddd; border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
+        #progress-bar { height: 100%; width: 0%; background: var(--success); transition: width 0.3s; }
+        .score-display { font-size: 1.5rem; }
+
+        .input-group { background: white; padding: 16px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 8px; font-size: 16px; outline: none; box-sizing: border-box; }
-        
         .controls { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
         input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 16px; }
-        .daily-label { font-size: 14px; color: #666; display: flex; align-items: center; gap: 5px; cursor: pointer; }
-        button#addBtn { background: var(--primary); color: white; border: none; border-radius: 8px; padding: 10px 15px; font-weight: 600; cursor: pointer; font-size: 16px; }
+        
+        h2 { font-size: 0.8rem; text-transform: uppercase; color: #888; margin: 25px 0 10px; }
+        ul { list-style: none; padding: 0; }
+        li { background: white; margin-bottom: 8px; padding: 14px; border-radius: 12px; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: 0.3s; }
+        li.done { opacity: 0.6; transform: scale(0.98); background: #f0fff4; }
+        li.pop-anim { animation: confettipop 0.4s ease-out; }
 
-        h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 32px 0 12px 4px; }
-        ul { list-style: none; padding: 0; margin: 0; }
-        li { background: white; margin-bottom: 8px; padding: 14px; border-radius: 12px; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
-        
-        input[type="checkbox"] { width: 22px; height: 22px; margin-right: 14px; cursor: pointer; accent-color: var(--primary); }
+        @keyframes confettipop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); box-shadow: 0 0 20px rgba(40, 167, 69, 0.4); }
+            100% { transform: scale(1); }
+        }
+
         .task-text { flex: 1; font-size: 16px; }
-        li.done { opacity: 0.5; }
-        li.done .task-text { text-decoration: line-through; }
+        .streak-fire { color: #ff4500; font-size: 0.8rem; font-weight: bold; margin-left: 10px; }
+        .del-btn { color: #eee; border: none; background: none; font-size: 1.2rem; cursor: pointer; }
+        li:hover .del-btn { color: var(--danger); }
         
-        .tag { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 8px; }
-        .daily-tag { background: #e7f3ff; color: var(--primary); }
-        .date-tag { background: #eee; color: #777; }
-        .del-btn { color: #ffbcbc; border: none; background: none; font-size: 1.4rem; cursor: pointer; padding-left: 10px; }
+        input[type="checkbox"] { width: 22px; height: 22px; margin-right: 12px; accent-color: var(--success); cursor: pointer; }
     </style>
 </head>
 <body>
 
+    <div id="header-stat">
+        <span id="streak-label">My Score</span>
+        <span class="score-display" id="scoreNum">0</span>
+    </div>
+    <div id="progress-container"><div id="progress-bar"></div></div>
+
     <div class="input-group">
-        <input type="text" id="taskInput" placeholder="What's next?" autocomplete="off">
+        <input type="text" id="taskInput" placeholder="New Mission..." autocomplete="off">
         <div class="controls">
             <input type="date" id="dateInput">
-            <label class="daily-label"><input type="checkbox" id="dailyInput"> Daily</label>
-            <button id="addBtn" onclick="addTask()">Add</button>
+            <label style="font-size: 14px;"><input type="checkbox" id="dailyInput"> Daily</label>
+            <button id="addBtn" onclick="addTask()" style="background:var(--primary); color:white; border:none; border-radius:8px; padding:8px 15px; font-weight:bold;">Add</button>
         </div>
     </div>
 
@@ -50,14 +64,9 @@
     <ul id="upcomingList"></ul>
 
     <script>
-        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(()=>{}); }
-
-        let tasks = JSON.parse(localStorage.getItem('todo_pwa_tasks')) || [];
-        const getTodayStr = () => new Date().toISOString().split('T')[0];
-
-        document.getElementById('taskInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addTask();
-        });
+        let tasks = JSON.parse(localStorage.getItem('game_todos')) || [];
+        let globalScore = parseInt(localStorage.getItem('game_score')) || 0;
+        const todayStr = new Date().toISOString().split('T')[0];
 
         function addTask() {
             const input = document.getElementById('taskInput');
@@ -71,22 +80,32 @@
                 date: dateInput.value,
                 isDaily: dailyInput.checked,
                 done: false,
-                lastCompleted: null
+                streak: 0,
+                lastCompleted: null,
+                missedAccounted: false // Prevents multiple -1s for same task
             });
 
             input.value = ''; dateInput.value = ''; dailyInput.checked = false;
             render();
         }
 
-        function toggle(id) {
+        function toggle(id, element) {
             tasks = tasks.map(t => {
                 if (t.id === id) {
-                    const isDone = !t.done;
-                    return { ...t, done: isDone, lastCompleted: isDone ? getTodayStr() : null };
+                    const becomingDone = !t.done;
+                    if (becomingDone) {
+                        globalScore += 1;
+                        if (t.isDaily) t.streak += 1;
+                        element.parentElement.classList.add('pop-anim');
+                    } else {
+                        globalScore -= 1;
+                        if (t.isDaily) t.streak = Math.max(0, t.streak - 1);
+                    }
+                    return { ...t, done: becomingDone, lastCompleted: becomingDone ? todayStr : null };
                 }
                 return t;
             });
-            render();
+            setTimeout(render, 400);
         }
 
         function deleteTask(id) {
@@ -95,40 +114,56 @@
         }
 
         function render() {
-            const todayStr = getTodayStr();
-            
-            // Recurrence Logic: Reset daily tasks if today is a new day
+            // Logic: Minus points for missed tasks
             tasks = tasks.map(t => {
-                if (t.isDaily && t.lastCompleted !== todayStr) {
-                    return { ...t, done: false };
+                // If task date is in the past, not done, and we haven't penalized it yet
+                if (t.date && t.date < todayStr && !t.done && !t.missedAccounted) {
+                    globalScore -= 1;
+                    t.missedAccounted = true;
+                }
+                // Reset daily for new day
+                if (t.isDaily && t.lastCompleted !== todayStr && t.done) {
+                    t.done = false;
                 }
                 return t;
             });
 
-            tasks.sort((a, b) => (a.date > b.date) ? 1 : -1);
-            localStorage.setItem('todo_pwa_tasks', JSON.stringify(tasks));
+            localStorage.setItem('game_todos', JSON.stringify(tasks));
+            localStorage.setItem('game_score', globalScore);
+
+            // Update UI Colors
+            document.getElementById('scoreNum').innerText = globalScore;
+            document.body.style.background = globalScore >= 0 ? "#f8f9fa" : "#fff5f5";
+            document.getElementById('scoreNum').style.color = globalScore >= 0 ? "var(--success)" : "var(--danger)";
 
             const tList = document.getElementById('todayList');
             const uList = document.getElementById('upcomingList');
             tList.innerHTML = ''; uList.innerHTML = '';
 
+            let todayTasks = tasks.filter(t => t.isDaily || t.date === todayStr || !t.date);
+            let doneToday = todayTasks.filter(t => t.done).length;
+            let progress = todayTasks.length ? (doneToday / todayTasks.length) * 100 : 0;
+            document.getElementById('progress-bar').style.width = progress + "%";
+
             tasks.forEach(t => {
                 const li = document.createElement('li');
                 if (t.done) li.classList.add('done');
                 
-                const tag = t.isDaily ? `<span class="tag daily-tag">DAILY</span>` : 
-                            t.date ? `<span class="tag date-tag">${t.date === todayStr ? 'Today' : t.date}</span>` : '';
+                const streakIcon = t.isDaily && t.streak > 0 ? `<span class="streak-fire">🔥 ${t.streak}</span>` : '';
+                const dateTag = t.date && t.date !== todayStr ? `<span class="tag date-tag">${t.date}</span>` : '';
 
                 li.innerHTML = `
-                    <input type="checkbox" ${t.done ? 'checked' : ''} onclick="toggle(${t.id})">
-                    <span class="task-text">${t.text}</span>
-                    ${tag}
+                    <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggle(${t.id}, this)">
+                    <span class="task-text">${t.text} ${streakIcon}</span>
+                    ${dateTag}
                     <button class="del-btn" onclick="deleteTask(${t.id})">✕</button>
                 `;
 
                 (t.isDaily || t.date === todayStr || !t.date) ? tList.appendChild(li) : uList.appendChild(li);
             });
         }
+
+        document.getElementById('taskInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') addTask(); });
         render();
     </script>
 </body>
