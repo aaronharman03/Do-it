@@ -30,9 +30,9 @@
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
         .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
         input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
-        button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; }
+        button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; transition: 0.3s; }
         ul { list-style: none; padding: 0; }
-        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: 0.3s; }
+        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: 0.3s; position: relative; }
         #todayList li { border-left: 6px solid #ccc; }
         #todayList li.pos-task { border-left-color: var(--success); background: #fafffb; }
         #todayList li.neg-task { border-left-color: var(--danger); background: #fff5f5; }
@@ -43,8 +43,15 @@
         .task-text { flex: 1; font-weight: 600; font-size: 16px; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
         .streak-badge { background: #fff3cd; color: #856404; }
-        .promo-btn { background: #eef; color: var(--primary); border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; }
-        .del-btn { margin-left: 10px; color: #ddd; cursor: pointer; border: none; background: none; font-size: 1.2rem; }
+        .promo-btn { background: #eef; color: var(--primary); border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; margin-right: 10px; }
+        
+        /* Menu Styles */
+        .menu-container { position: relative; }
+        .menu-dots { cursor: pointer; padding: 5px; font-size: 1.4rem; color: #ccc; line-height: 1; }
+        .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 120px; overflow: hidden; }
+        .menu-content.show { display: block; }
+        .menu-content button { display: block; width: 100%; padding: 12px; text-align: left; border: none; background: none; font-size: 14px; cursor: pointer; font-weight: 600; }
+        .menu-content button:hover { background: #f8f9fa; }
     </style>
 </head>
 <body>
@@ -111,17 +118,17 @@
 
         let tasks = [];
         let userId = null;
+        let editingTaskId = null;
 
-        // CRITICAL FIX: The listener now calls syncWithCloud only after user is verified
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 userId = user.uid;
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('app-ui').style.display = 'block';
-                await syncWithCloud(); // Wait for data before rendering
+                await syncWithCloud();
             } else {
                 userId = null;
-                tasks = []; // Clear local tasks on logout
+                tasks = [];
                 document.getElementById('auth-screen').style.display = 'block';
                 document.getElementById('app-ui').style.display = 'none';
             }
@@ -142,9 +149,7 @@
             if (!userId) return;
             try {
                 const doc = await db.collection('users').doc(userId).get();
-                if (doc.exists) { 
-                    tasks = doc.data().tasks || []; 
-                }
+                if (doc.exists) { tasks = doc.data().tasks || []; }
                 render(); 
             } catch (err) { console.error("Sync Error:", err); }
         }
@@ -152,35 +157,66 @@
         async function saveToCloud() {
             if (!userId) return;
             try {
-                // We use set with merge: true to ensure the document exists
                 await db.collection('users').doc(userId).set({ tasks }, { merge: true });
-            } catch (err) {
-                console.error("Save Error:", err);
-            }
+            } catch (err) { console.error("Save Error:", err); }
         }
 
         const getToday = () => new Date().toISOString().split('T')[0];
+
+        function toggleMenu(id) {
+            event.stopPropagation();
+            document.querySelectorAll('.menu-content').forEach(m => {
+                if (m.id !== `menu-${id}`) m.classList.remove('show');
+            });
+            document.getElementById(`menu-${id}`).classList.toggle('show');
+        }
+
+        window.onclick = () => document.querySelectorAll('.menu-content').forEach(m => m.classList.remove('show'));
+
+        function editTask(id) {
+            const t = tasks.find(task => task.id === id);
+            editingTaskId = id;
+            document.getElementById('taskInput').value = t.text;
+            document.getElementById('dateInput').value = t.date;
+            document.getElementById('dailyInput').checked = t.isDaily;
+            const btn = document.getElementById('addBtn');
+            btn.innerText = "SAVE";
+            btn.style.background = "var(--primary)";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
 
         async function addTask() {
             const input = document.getElementById('taskInput');
             const dateInput = document.getElementById('dateInput');
             const dailyInput = document.getElementById('dailyInput');
+            const addBtn = document.getElementById('addBtn');
             if (!input.value.trim()) return;
 
-            tasks.push({
-                id: Date.now(),
-                text: input.value.trim(),
-                date: dateInput.value || getToday(),
-                isDaily: dailyInput.checked,
-                done: false,
-                individualScore: 0,
-                streak: 0,
-                lastCompletedDate: null,
-                penalizedDates: [] 
-            });
+            if (editingTaskId) {
+                tasks = tasks.map(t => t.id === editingTaskId ? {
+                    ...t,
+                    text: input.value.trim(),
+                    date: dateInput.value || getToday(),
+                    isDaily: dailyInput.checked
+                } : t);
+                editingTaskId = null;
+                addBtn.innerText = "ADD";
+                addBtn.style.background = "#000";
+            } else {
+                tasks.push({
+                    id: Date.now(),
+                    text: input.value.trim(),
+                    date: dateInput.value || getToday(),
+                    isDaily: dailyInput.checked,
+                    done: false,
+                    individualScore: 0,
+                    streak: 0,
+                    lastCompletedDate: null,
+                    penalizedDates: [] 
+                });
+            }
 
             input.value = ''; dateInput.value = ''; dailyInput.checked = false;
-            
             render(); 
             await saveToCloud();
         }
@@ -220,7 +256,10 @@
         function render() {
             const today = getToday();
             let stateChanged = false;
+            
+            // Sort by date (Soonest first)
             tasks.sort((a, b) => new Date(a.date) - new Date(b.date));
+
             tasks = tasks.map(t => {
                 const isTodayActive = (t.isDaily || t.date === today);
                 if (t.isDaily && t.lastCompletedDate !== today && t.done === true) {
@@ -281,6 +320,15 @@
                 const li = document.createElement('li');
                 const isTodayActive = (t.isDaily || t.date === today);
                 
+                const menuHtml = `
+                    <div class="menu-container">
+                        <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
+                        <div class="menu-content" id="menu-${t.id}">
+                            <button onclick="editTask(${t.id})">✏️ Edit</button>
+                            <button onclick="deleteTask(${t.id})" style="color:var(--danger)">🗑️ Delete</button>
+                        </div>
+                    </div>`;
+
                 if (isTodayActive) {
                     if (t.done) li.classList.add('done');
                     if (t.individualScore > 0) li.classList.add('pos-task');
@@ -291,12 +339,13 @@
                         <span class="task-text">${t.text}</span>
                         <span class="badge">PTS ${t.individualScore.toFixed(1)}</span>
                         ${t.streak > 0 ? `<span class="badge streak-badge">🔥 ${t.streak}</span>` : ''}
-                        <button class="del-btn" onclick="deleteTask(${t.id})">✕</button>`;
+                        ${menuHtml}`;
                     tList.appendChild(li);
                 } else {
-                    li.innerHTML = `<span class="task-text">${t.text} <small style="color:#aaa">(${t.date})</small></span>
+                    li.innerHTML = `
+                        <span class="task-text">${t.text} <small style="color:#aaa">(${t.date})</small></span>
                         <button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>
-                        <button class="del-btn" onclick="deleteTask(${t.id})">✕</button>`;
+                        ${menuHtml}`;
                     uList.appendChild(li);
                 }
             });
