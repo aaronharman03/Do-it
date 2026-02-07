@@ -106,6 +106,10 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
+
+        // Enable Offline Support
+        db.enablePersistence().catch(err => console.error("Persistence failed", err.code));
+
         let tasks = [];
         let userId = null;
 
@@ -116,6 +120,7 @@
                 document.getElementById('app-ui').style.display = 'block';
                 syncWithCloud();
             } else {
+                userId = null;
                 document.getElementById('auth-screen').style.display = 'block';
                 document.getElementById('app-ui').style.display = 'none';
             }
@@ -133,17 +138,24 @@
         function logout() { auth.signOut(); }
 
         async function syncWithCloud() {
+            if (!userId) return;
             try {
                 const doc = await db.collection('users').doc(userId).get();
                 if (doc.exists) { 
                     tasks = doc.data().tasks || []; 
                 }
-                render();
-            } catch (err) { console.error(err); render(); }
+                render(); // This will trigger the penalty/reset logic and auto-save if needed
+            } catch (err) { console.error("Sync Error:", err); }
         }
 
         async function saveToCloud() {
-            if (userId) await db.collection('users').doc(userId).set({ tasks });
+            if (userId) {
+                try {
+                    await db.collection('users').doc(userId).set({ tasks }, { merge: true });
+                } catch (err) {
+                    console.error("Save Error:", err);
+                }
+            }
         }
 
         const getToday = () => new Date().toISOString().split('T')[0];
@@ -157,7 +169,7 @@
             tasks.push({
                 id: Date.now(),
                 text: input.value.trim(),
-                date: dateInput.value || "",
+                date: dateInput.value || getToday(),
                 isDaily: dailyInput.checked,
                 done: false,
                 individualScore: 0,
@@ -175,9 +187,14 @@
         async function complete(id, type) {
             tasks = tasks.map(t => {
                 if (t.id === id && !t.done) {
-                    t.done = true; t.lastCompletedDate = getToday();
-                    if (type === 'FULL') { t.individualScore += 1; if(t.isDaily) t.streak += 1; }
-                    else { t.individualScore += 0.1; }
+                    t.done = true; 
+                    t.lastCompletedDate = getToday();
+                    if (type === 'FULL') { 
+                        t.individualScore += 1; 
+                        if(t.isDaily) t.streak += 1; 
+                    } else { 
+                        t.individualScore += 0.1; 
+                    }
                 }
                 return t;
             });
@@ -192,7 +209,7 @@
         }
 
         async function deleteTask(id) {
-            if(confirm("Erase task? History remains.")) {
+            if(confirm("Erase task?")) {
                 tasks = tasks.filter(t => t.id !== id);
                 render();
                 await saveToCloud();
@@ -201,20 +218,35 @@
 
         function render() {
             const today = getToday();
+            let stateChanged = false;
             
+            // LOGIC: Reset dailies and apply penalties
             tasks = tasks.map(t => {
                 const isTodayActive = (t.isDaily || t.date === today);
-                if (t.isDaily && t.lastCompletedDate !== today) t.done = false;
+                
+                // Reset daily status if a new day has arrived
+                if (t.isDaily && t.lastCompletedDate !== today && t.done === true) {
+                    t.done = false;
+                    stateChanged = true;
+                }
 
+                // Apply Penalty for missed tasks
                 let deadline = t.isDaily ? (t.lastCompletedDate || t.date) : t.date;
                 if (deadline && deadline < today && isTodayActive && !t.done) {
                     if (!t.penalizedDates.includes(today)) {
-                        t.individualScore -= 1; t.streak = 0; t.penalizedDates.push(today);
+                        t.individualScore -= 1; 
+                        t.streak = 0; 
+                        t.penalizedDates.push(today);
+                        stateChanged = true;
                     }
                 }
                 return t;
             });
 
+            // If logic updated something, sync it back to Cloud immediately
+            if (stateChanged) saveToCloud();
+
+            // UI RENDERING
             const totalScore = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
             document.getElementById('globalScore').innerText = totalScore.toFixed(1);
             document.getElementById('globalScore').style.color = totalScore >= 0 ? "var(--success)" : "var(--danger)";
@@ -225,12 +257,18 @@
                 { id: 'm3', val: 300, name: 'Gold' },
                 { id: 'm4', val: 500, name: 'Legend' }
             ];
+            
             let nextM = milestones.find(m => totalScore < m.val) || { name: 'Max Level', val: totalScore };
             let prevVal = 0;
             milestones.forEach((m) => {
-                if (totalScore >= m.val) { document.getElementById(m.id).classList.add('unlocked'); prevVal = m.val; }
-                else { document.getElementById(m.id).classList.remove('unlocked'); }
+                if (totalScore >= m.val) { 
+                    document.getElementById(m.id).classList.add('unlocked'); 
+                    prevVal = m.val; 
+                } else { 
+                    document.getElementById(m.id).classList.remove('unlocked'); 
+                }
             });
+
             let medalPercent = (nextM.val - prevVal) > 0 ? Math.max(0, ((totalScore - prevVal) / (nextM.val - prevVal)) * 100) : 100;
             document.getElementById('medalProgressBar').style.width = medalPercent + "%";
             document.getElementById('nextMedalLabel').innerText = `Next: ${nextM.name} (${nextM.val} Pts)`;
@@ -248,6 +286,7 @@
             tasks.forEach(t => {
                 const li = document.createElement('li');
                 const isTodayActive = (t.isDaily || t.date === today);
+                
                 if (isTodayActive) {
                     if (t.done) li.classList.add('done');
                     if (t.individualScore > 0) li.classList.add('pos-task');
@@ -256,12 +295,12 @@
                         <input type="checkbox" ${t.done ? 'checked disabled' : ''} onchange="complete(${t.id}, 'FULL')">
                         ${!t.done ? `<div class="min-effort-btn" onclick="complete(${t.id}, 'MINIMAL')">⚡</div>` : ''}
                         <span class="task-text">${t.text}</span>
-                        <span class="badge score-badge">PTS ${t.individualScore.toFixed(1)}</span>
+                        <span class="badge">PTS ${t.individualScore.toFixed(1)}</span>
                         ${t.streak > 0 ? `<span class="badge streak-badge">🔥 ${t.streak}</span>` : ''}
                         <button class="del-btn" onclick="deleteTask(${t.id})">✕</button>`;
                     tList.appendChild(li);
                 } else {
-                    li.innerHTML = `<span class="task-text">${t.text} <small style="color:#aaa">(${t.date || 'Safe'})</small></span>
+                    li.innerHTML = `<span class="task-text">${t.text} <small style="color:#aaa">(${t.date})</small></span>
                         <button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>
                         <button class="del-btn" onclick="deleteTask(${t.id})">✕</button>`;
                     uList.appendChild(li);
