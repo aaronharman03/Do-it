@@ -107,20 +107,21 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // Enable Offline Support
         db.enablePersistence().catch(err => console.error("Persistence failed", err.code));
 
         let tasks = [];
         let userId = null;
 
-        auth.onAuthStateChanged(user => {
+        // CRITICAL FIX: The listener now calls syncWithCloud only after user is verified
+        auth.onAuthStateChanged(async (user) => {
             if (user) {
                 userId = user.uid;
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('app-ui').style.display = 'block';
-                syncWithCloud();
+                await syncWithCloud(); // Wait for data before rendering
             } else {
                 userId = null;
+                tasks = []; // Clear local tasks on logout
                 document.getElementById('auth-screen').style.display = 'block';
                 document.getElementById('app-ui').style.display = 'none';
             }
@@ -144,17 +145,17 @@
                 if (doc.exists) { 
                     tasks = doc.data().tasks || []; 
                 }
-                render(); // This will trigger the penalty/reset logic and auto-save if needed
+                render(); 
             } catch (err) { console.error("Sync Error:", err); }
         }
 
         async function saveToCloud() {
-            if (userId) {
-                try {
-                    await db.collection('users').doc(userId).set({ tasks }, { merge: true });
-                } catch (err) {
-                    console.error("Save Error:", err);
-                }
+            if (!userId) return;
+            try {
+                // We use set with merge: true to ensure the document exists
+                await db.collection('users').doc(userId).set({ tasks }, { merge: true });
+            } catch (err) {
+                console.error("Save Error:", err);
             }
         }
 
@@ -220,17 +221,12 @@
             const today = getToday();
             let stateChanged = false;
             
-            // LOGIC: Reset dailies and apply penalties
             tasks = tasks.map(t => {
                 const isTodayActive = (t.isDaily || t.date === today);
-                
-                // Reset daily status if a new day has arrived
                 if (t.isDaily && t.lastCompletedDate !== today && t.done === true) {
                     t.done = false;
                     stateChanged = true;
                 }
-
-                // Apply Penalty for missed tasks
                 let deadline = t.isDaily ? (t.lastCompletedDate || t.date) : t.date;
                 if (deadline && deadline < today && isTodayActive && !t.done) {
                     if (!t.penalizedDates.includes(today)) {
@@ -243,10 +239,8 @@
                 return t;
             });
 
-            // If logic updated something, sync it back to Cloud immediately
             if (stateChanged) saveToCloud();
 
-            // UI RENDERING
             const totalScore = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
             document.getElementById('globalScore').innerText = totalScore.toFixed(1);
             document.getElementById('globalScore').style.color = totalScore >= 0 ? "var(--success)" : "var(--danger)";
