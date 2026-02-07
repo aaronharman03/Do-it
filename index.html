@@ -220,7 +220,7 @@
         function render() {
             const today = getToday();
             let stateChanged = false;
-            
+            tasks.sort((a, b) => new Date(a.date) - new Date(b.date));
             tasks = tasks.map(t => {
                 const isTodayActive = (t.isDaily || t.date === today);
                 if (t.isDaily && t.lastCompletedDate !== today && t.done === true) {
