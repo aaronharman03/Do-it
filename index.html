@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Calendar & Vault Edition</title>
+    <title>Reputation: Master Edition</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <link rel="manifest" href="manifest.json">
+
     <style>
         :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; }
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
@@ -14,90 +16,93 @@
         .auth-input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .auth-btn { background: #000; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
         #app-ui { display: none; }
-        
-        /* Dashboard */
-        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; position: relative; border-bottom: 5px solid #ddd;}
+        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center; border-bottom: 5px solid #ddd; position: relative; }
         .logout-btn { position: absolute; top: 10px; right: 10px; font-size: 0.6rem; cursor: pointer; background: #eee; border: none; padding: 5px; border-radius: 4px; }
-        .global-score { font-size: 3.2rem; font-weight: 900; margin: 5px 0; line-height: 1; text-align: center;}
+        .global-score { font-size: 3.2rem; font-weight: 900; margin: 5px 0; line-height: 1; }
         .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; display: block; }
-        
-        /* Progress Bars */
-        .bar-bg { width: 100%; height: 10px; background: #eee; border-radius: 4px; overflow: hidden; margin: 8px 0; position: relative; }
+        .bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 8px 0; position: relative; }
+        #progressBar { height: 100%; background: var(--success); width: 0%; transition: width 0.6s ease; }
         #medalProgressBar { height: 100%; background: var(--gold); width: 0%; transition: width 0.6s ease; }
-        #ghostMarker { position: absolute; top: 0; width: 3px; height: 100%; background: rgba(0,0,0,0.4); z-index: 2; transition: left 0.6s ease; }
-        
-        /* Calendar Nav */
-        .calendar-nav { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 10px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-        .nav-btn { border:none; background:none; cursor:pointer; font-size: 1.2rem; padding: 0 10px; }
-        .calendar-nav input { border: none; font-weight: bold; font-family: inherit; font-size: 1rem; cursor: pointer; text-align: center; }
-
-        /* Tasks */
-        .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
+        #ghostMarker { position: absolute; top: 0; width: 3px; height: 100%; background: rgba(0,0,0,0.3); z-index: 5; transition: left 0.5s; }
+        .milestones { display: flex; justify-content: space-around; margin: 15px 0; background: #fafafa; padding: 12px; border-radius: 16px; }
+        .medal { font-size: 1.6rem; filter: grayscale(1); opacity: 0.2; transition: 0.5s; }
+        .medal.unlocked { filter: grayscale(0); opacity: 1; transform: scale(1.1); }
+        .calendar-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px; background: white; padding: 10px; border-radius: 12px; }
+        .nav-arrow { border: none; background: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
+        .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
+        .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+        input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
+        button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; }
         ul { list-style: none; padding: 0; }
         li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; }
-        li.done { opacity: 0.6; }
+        #todayList li.pos-task { border-left-color: var(--success); }
+        #todayList li.neg-task { border-left-color: var(--danger); }
+        li.done { opacity: 0.5; }
         li.done .task-text { text-decoration: line-through; }
-        li.pos-task { border-left-color: var(--success); }
-        li.neg-task { border-left-color: var(--danger); }
         input[type="checkbox"] { width: 24px; height: 24px; margin-right: 12px; cursor: pointer; }
-        .task-text { flex: 1; font-weight: 600; }
+        .min-effort-btn { background: #fff3cd; color: #856404; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; flex-shrink: 0; }
+        .task-text { flex: 1; font-weight: 600; font-size: 16px; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
+        .streak-badge { background: #fff3cd; color: #856404; }
         .danger-badge { background: #ff4444; color: white; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        
-        .menu-dots { cursor: pointer; padding: 5px; font-size: 1.2rem; color: #ccc; }
-        .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 100px; }
+        .menu-dots { cursor: pointer; padding: 5px; font-size: 1.4rem; color: #ccc; }
+        .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 120px; }
         .menu-content.show { display: block; }
-        .menu-content button { display: block; width: 100%; padding: 10px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .menu-content button { display: block; width: 100%; padding: 12px; text-align: left; border: none; background: none; font-size: 14px; cursor: pointer; font-weight: 600; }
     </style>
 </head>
 <body>
 
     <div id="auth-screen">
-        <span class="label">Cloud Vault Access</span>
+        <span class="label">Vault Login</span>
         <input type="email" id="email" class="auth-input" placeholder="Email">
         <input type="password" id="password" class="auth-input" placeholder="Password">
         <button onclick="handleAuth('login')" class="auth-btn" style="margin-bottom: 10px;">Login</button>
-        <button onclick="handleAuth('signup')" class="auth-btn" style="background: #666;">Create Account</button>
+        <button onclick="handleAuth('signup')" class="auth-btn" style="background: #666;">Sign Up</button>
     </div>
 
     <div id="app-ui">
         <div class="dashboard">
             <button class="logout-btn" onclick="logout()">LOGOUT</button>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span class="label">Reputation</span>
-                <span class="label">PB: <span id="pbScore" style="color:var(--gold)">0.0</span></span>
-            </div>
+            <span class="label">Total Reputation</span>
             <div class="global-score" id="globalScore">0.0</div>
-            <div class="bar-bg">
+            <span class="label">Best: <span id="pbScore" style="color:var(--gold)">0.0</span></span>
+            
+            <span class="label" id="nextMedalLabel" style="font-size: 0.55rem; margin-top: 10px;">Next: Bronze (10)</span>
+            <div class="bar-bg" style="height: 6px;">
                 <div id="medalProgressBar"></div>
                 <div id="ghostMarker"></div>
             </div>
-            <span class="label" id="nextMedalLabel">Next: Bronze (10)</span>
-            <div style="display: flex; justify-content: space-around; margin-top: 10px;">
-                <span id="m1">🥉</span> <span id="m2">🥈</span> <span id="m3">🥇</span> <span id="m4">👑</span>
+
+            <div class="milestones">
+                <div class="medal" id="m1">🥉</div>
+                <div class="medal" id="m2">🥈</div>
+                <div class="medal" id="m3">🥇</div>
+                <div class="medal" id="m4">👑</div>
             </div>
         </div>
 
         <div class="calendar-nav">
-            <button onclick="changeViewDate(-1)" class="nav-btn">◀</button>
-            <input type="date" id="viewDateSelector" onchange="render()">
-            <button onclick="changeViewDate(1)" class="nav-btn">▶</button>
+            <button class="nav-arrow" onclick="changeViewDate(-1)">◀</button>
+            <input type="date" id="viewDateSelector" onchange="render()" style="border:none; font-weight:bold; font-size:16px;">
+            <button class="nav-arrow" onclick="changeViewDate(1)">▶</button>
         </div>
 
         <div class="input-group">
             <input type="text" id="taskInput" placeholder="New Mission..." autocomplete="off">
-            <div style="display: flex; gap: 10px; margin-top: 12px; align-items: center;">
-                <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
-                <button id="addBtn" onclick="addTask()" style="margin-left: auto; background:#000; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight: 800;">ADD</button>
+            <div class="controls">
+                <input type="date" id="dateInput">
+                <label style="font-size: 13px; font-weight: 700; cursor:pointer;"><input type="checkbox" id="dailyInput"> DAILY</label>
+                <button id="addBtn" onclick="addTask()">ADD</button>
             </div>
         </div>
 
-        <span class="label">☀️ Active for Selected Day</span>
-        <ul id="taskList"></ul>
-        <span class="label">🗓️ Holding Pen (One-offs)</span>
-        <ul id="holdingPen"></ul>
+        <span class="label">☀️ Selected Day</span>
+        <ul id="todayList"></ul>
+        <span class="label">🗓️ Holding Pen</span>
+        <ul id="upcomingList"></ul>
     </div>
 
     <script>
@@ -118,11 +123,11 @@
         document.getElementById('viewDateSelector').value = getToday();
 
         auth.onAuthStateChanged(async (user) => {
-            if (user) { 
-                userId = user.uid; 
-                document.getElementById('auth-screen').style.display = 'none'; 
-                document.getElementById('app-ui').style.display = 'block'; 
-                await syncWithCloud(); 
+            if (user) {
+                userId = user.uid;
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('app-ui').style.display = 'block';
+                await syncWithCloud();
             } else {
                 userId = null;
                 document.getElementById('auth-screen').style.display = 'block';
@@ -132,8 +137,7 @@
 
         async function handleAuth(type) {
             const e = document.getElementById('email').value, p = document.getElementById('password').value;
-            try { type === 'signup' ? await auth.createUserWithEmailAndPassword(e, p) : await auth.signInWithEmailAndPassword(e, p); }
-            catch (err) { alert(err.message); }
+            try { type === 'signup' ? await auth.createUserWithEmailAndPassword(e, p) : await auth.signInWithEmailAndPassword(e, p); } catch (err) { alert(err.message); }
         }
 
         function logout() { auth.signOut(); }
@@ -148,7 +152,7 @@
                 yesterdayScore = data.yesterdayScore || 0;
                 const today = getToday();
                 if (data.lastLoginDate !== today) {
-                    yesterdayScore = parseFloat(tasks.reduce((acc, t) => acc + (t.individualScore || 0), 0).toFixed(1));
+                    yesterdayScore = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
                     await db.collection('users').doc(userId).set({ yesterdayScore, lastLoginDate: today }, { merge: true });
                 }
             }
@@ -157,11 +161,9 @@
 
         async function saveToCloud() {
             if (!userId) return;
-            const currentTotal = parseFloat(tasks.reduce((acc, t) => acc + (t.individualScore || 0), 0).toFixed(1));
+            const currentTotal = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
             if (currentTotal > personalBest) personalBest = currentTotal;
-            try {
-                await db.collection('users').doc(userId).set({ tasks, personalBest, yesterdayScore }, { merge: true });
-            } catch (e) { console.error("Save Error", e); }
+            await db.collection('users').doc(userId).set({ tasks, personalBest, yesterdayScore }, { merge: true });
         }
 
         function changeViewDate(days) {
@@ -172,33 +174,25 @@
         }
 
         async function addTask() {
-            const input = document.getElementById('taskInput'), daily = document.getElementById('dailyInput');
+            const input = document.getElementById('taskInput'), dInput = document.getElementById('dateInput'), daily = document.getElementById('dailyInput');
             if (!input.value.trim()) return;
             tasks.push({
-                id: Date.now(), text: input.value.trim(), date: document.getElementById('viewDateSelector').value,
-                isDaily: daily.checked, individualScore: 0, streak: 0,
-                completedDates: [], penalizedDates: [], missedHistory: []
+                id: Date.now(), text: input.value.trim(), date: dInput.value || getToday(),
+                isDaily: daily.checked, done: false, individualScore: 0, streak: 0,
+                lastCompletedDate: null, penalizedDates: [], missedHistory: []
             });
-            input.value = ''; daily.checked = false;
-            render(); await saveToCloud();
+            input.value = ''; render(); await saveToCloud();
         }
 
-        async function toggleTask(id) {
-            const targetDate = document.getElementById('viewDateSelector').value;
+        async function complete(id, type) {
+            const viewDate = document.getElementById('viewDateSelector').value;
             tasks = tasks.map(t => {
-                if (t.id === id) {
-                    if (!t.completedDates) t.completedDates = [];
-                    if (t.completedDates.includes(targetDate)) {
-                        t.completedDates = t.completedDates.filter(d => d !== targetDate);
-                        t.individualScore -= 1;
-                        if(t.isDaily) t.streak = Math.max(0, t.streak - 1);
-                    } else {
-                        t.completedDates.push(targetDate);
-                        t.individualScore += 1;
-                        if(t.isDaily) t.streak++;
-                        t.penalizedDates = (t.penalizedDates || []).filter(d => d !== targetDate);
-                        t.missedHistory = (t.missedHistory || []).filter(d => d !== targetDate);
-                    }
+                if (t.id === id && !t.done) {
+                    t.done = true;
+                    t.lastCompletedDate = viewDate;
+                    if (type === 'FULL') { t.individualScore += 1; if(t.isDaily) t.streak++; }
+                    else { t.individualScore += 0.1; }
+                    t.penalizedDates = (t.penalizedDates || []).filter(d => d !== viewDate);
                 }
                 return t;
             });
@@ -206,7 +200,7 @@
         }
 
         async function deleteTask(id) {
-            if(confirm("Delete mission?")) { tasks = tasks.filter(t => t.id !== id); render(); await saveToCloud(); }
+            if(confirm("Delete?")) { tasks = tasks.filter(t => t.id !== id); render(); await saveToCloud(); }
         }
 
         function toggleMenu(id) {
@@ -215,7 +209,6 @@
             document.querySelectorAll('.menu-content').forEach(m => m !== el && m.classList.remove('show'));
             el.classList.toggle('show');
         }
-
         window.onclick = () => document.querySelectorAll('.menu-content').forEach(m => m.classList.remove('show'));
 
         function render() {
@@ -223,15 +216,18 @@
             const today = getToday();
             let stateChanged = false;
 
-            // Penalty Engine
             tasks = tasks.map(t => {
-                const lastLog = (t.completedDates && t.completedDates.length) ? t.completedDates.sort().reverse()[0] : t.date;
-                if (lastLog < today && (t.isDaily || t.date === today) && !t.penalizedDates.includes(today) && !t.completedDates.includes(today)) {
+                // If viewing a different day, we reset 'done' visually based on lastCompletedDate
+                if (t.isDaily && t.lastCompletedDate !== viewDate) { t.done = false; }
+                else if (t.isDaily && t.lastCompletedDate === viewDate) { t.done = true; }
+
+                let deadline = t.isDaily ? (t.lastCompletedDate || t.date) : t.date;
+                if (deadline < today && (t.isDaily || t.date === today) && !t.penalizedDates.includes(today) && !t.done) {
                     let penalty = t.streak >= 30 ? 20 : (t.streak >= 10 ? 5 : 1);
                     t.individualScore -= penalty;
-                    if(!t.missedHistory) t.missedHistory = [];
+                    if (!t.missedHistory) t.missedHistory = [];
                     t.missedHistory.push(today);
-                    
+
                     let major = false;
                     const h = t.missedHistory;
                     if (h.length >= 2) {
@@ -239,65 +235,63 @@
                         if (d === 1) major = true;
                     }
                     const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-                    if (!major && h.filter(x => new Date(x) >= weekAgo).length >= 3) major = true;
+                    if (!major && h.filter(d => new Date(d) >= weekAgo).length >= 3) major = true;
                     if (major) t.individualScore -= 10;
 
-                    t.streak = 0;
-                    t.penalizedDates.push(today);
-                    stateChanged = true;
+                    t.streak = 0; t.penalizedDates.push(today); stateChanged = true;
                 }
                 return t;
             });
 
             if (stateChanged) saveToCloud();
-
-            const total = parseFloat(tasks.reduce((acc, t) => acc + (t.individualScore || 0), 0).toFixed(1));
+            const total = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
             document.getElementById('globalScore').innerText = total.toFixed(1);
             document.getElementById('pbScore').innerText = personalBest.toFixed(1);
 
             const milestones = [{id:'m1', val:50}, {id:'m2', val:150}, {id:'m3', val:300}, {id:'m4', val:500}];
             let next = milestones.find(m => total < m.val) || {val: total}, prev = 0;
             milestones.forEach(m => { 
-                const el = document.getElementById(m.id);
-                if (total >= m.val) { el.style.filter = "grayscale(0)"; el.style.opacity = "1"; prev = m.val; }
-                else { el.style.filter = "grayscale(1)"; el.style.opacity = "0.2"; }
+                if (total >= m.val) { document.getElementById(m.id).classList.add('unlocked'); prev = m.val; }
+                else document.getElementById(m.id).classList.remove('unlocked');
             });
             document.getElementById('medalProgressBar').style.width = Math.max(0, ((total - prev) / (next.val - prev)) * 100) + "%";
+            
+            const gPrev = milestones.reduce((acc, m) => (yesterdayScore >= m.val ? m.val : acc), 0);
+            const gNext = milestones.find(m => yesterdayScore < m.val) || {val: yesterdayScore};
+            document.getElementById('ghostMarker').style.left = Math.max(0, ((yesterdayScore - gPrev) / (gNext.val - gPrev)) * 100) + "%";
 
-            // Ghost Marker
-            const ghost = document.getElementById('ghostMarker');
-            let gPrev = 0; milestones.forEach(m => { if (yesterdayScore >= m.val) gPrev = m.val; });
-            let gNext = milestones.find(m => yesterdayScore < m.val) || {val: yesterdayScore};
-            ghost.style.left = Math.max(0, ((yesterdayScore - gPrev) / (gNext.val - gPrev)) * 100) + "%";
-
-            const list = document.getElementById('taskList'); 
-            const pen = document.getElementById('holdingPen');
-            list.innerHTML = ''; pen.innerHTML = '';
+            const tList = document.getElementById('todayList'); tList.innerHTML = '';
+            const uList = document.getElementById('upcomingList'); uList.innerHTML = '';
 
             tasks.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(t => {
                 const isActive = t.isDaily || t.date === viewDate;
-                const isDone = (t.completedDates || []).includes(viewDate);
+                if (!isActive) {
+                    if (t.date > viewDate) {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span class="task-text">${t.text} <small>(${t.date})</small></span>`;
+                        uList.appendChild(li);
+                    }
+                    return;
+                }
+
+                const li = document.createElement('li');
+                if (t.done) li.classList.add('done');
+                li.classList.add(t.individualScore >= 0 ? 'pos-task' : 'neg-task');
+                
                 const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
                 const risk = (t.missedHistory || []).filter(d => new Date(d) >= weekAgo).length >= 2;
 
-                const li = document.createElement('li');
-                if (isDone) li.classList.add('done');
-                li.classList.add(t.individualScore >= 0 ? 'pos-task' : 'neg-task');
-
                 li.innerHTML = `
-                    <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleTask(${t.id})">
+                    <input type="checkbox" ${t.done?'checked disabled':''} onchange="complete(${t.id}, 'FULL')">
+                    ${!t.done ? `<div class="min-effort-btn" onclick="complete(${t.id}, 'MINIMAL')">⚡</div>` : ''}
                     <span class="task-text">${t.text}</span>
-                    ${risk && !isDone && viewDate === today ? '<span class="badge danger-badge">⚠️ RISK</span>' : ''}
+                    ${risk && !t.done ? '<span class="badge danger-badge">⚠️ RISK</span>' : ''}
                     <span class="badge" style="background:#eee">PTS ${t.individualScore.toFixed(1)}</span>
-                    ${t.streak > 0 ? `<span class="badge" style="background:#fff3cd">🔥 ${t.streak}</span>` : ''}
+                    ${t.streak > 0 ? `<span class="badge streak-badge">🔥 ${t.streak}</span>` : ''}
                     <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
-                    <div class="menu-content" id="menu-${t.id}">
-                        <button onclick="deleteTask(${t.id})" style="color:var(--danger)">DELETE</button>
-                    </div>
+                    <div class="menu-content" id="menu-${t.id}"><button onclick="deleteTask(${t.id})" style="color:var(--danger)">Delete</button></div>
                 `;
-                
-                if (isActive) list.appendChild(li);
-                else if (!t.isDaily && t.date > viewDate) pen.appendChild(li);
+                tList.appendChild(li);
             });
         }
     </script>
