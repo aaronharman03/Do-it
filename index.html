@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Boss Edition</title>
+    <title>Reputation: Master Ledger</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -25,10 +25,14 @@
         .nav-btn { border: none; background: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
         #viewDateSelector { border: none; font-weight: bold; font-size: 16px; font-family: inherit; cursor: pointer; text-align: center; }
         
+        .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
+        .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+        input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
+        
         ul { list-style: none; padding: 0; }
         li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; transition: 0.3s; }
         
-        /* Boss Style */
         li.boss-mode { background: #1a1a1a; color: white; border-left-color: var(--boss); animation: shadow-pulse 2s infinite; }
         @keyframes shadow-pulse { 0% { box-shadow: 0 0 5px rgba(111, 66, 193, 0.4); } 50% { box-shadow: 0 0 20px rgba(111, 66, 193, 0.8); } 100% { box-shadow: 0 0 5px rgba(111, 66, 193, 0.4); } }
 
@@ -37,15 +41,13 @@
         li.state-done.boss-mode { border-left-color: var(--gold); }
         li.state-done .task-text { text-decoration: line-through; opacity: 0.5; }
 
-        .status-box { width: 34px; height: 34px; border-radius: 8px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; font-size: 18px; font-weight: bold; transition: 0.2s; background: white; flex-shrink: 0; color: #333; }
+        .status-box { width: 34px; height: 34px; border-radius: 8px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; font-size: 18px; font-weight: bold; background: white; flex-shrink: 0; color: #333; }
         .status-box.done { background: var(--success); border-color: var(--success); color: white; }
         .status-box.failed { background: var(--danger); border-color: var(--danger); color: white; }
-        .boss-mode .status-box { border-color: var(--boss); color: var(--boss); }
-        .boss-mode .status-box.done { background: var(--gold); border-color: var(--gold); color: black; }
 
         .task-text { flex: 1; font-weight: 600; font-size: 16px; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; color: #333; }
-        .boss-mode .badge { background: rgba(255,255,255,0.1); color: white; }
+        .promo-btn { background: #eef; color: var(--primary); border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; margin-right: 10px; }
     </style>
 </head>
 <body>
@@ -69,16 +71,18 @@
             <button class="nav-btn" onclick="changeViewDate(1)">▶</button>
         </div>
 
-        <div style="background: white; padding: 15px; border-radius: 16px; margin-bottom: 20px;">
-            <input type="text" id="taskInput" placeholder="New mission..." style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 8px; outline: none;">
-            <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-                <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
-                <button onclick="addTask()" style="margin-left: auto; background: black; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
+        <div class="input-group">
+            <input type="text" id="taskInput" placeholder="New thought or mission..." autocomplete="off">
+            <div class="controls">
+                <input type="date" id="dateInput">
+                <label style="font-size: 13px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
+                <button onclick="addTask()" style="margin-left: auto; background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
             </div>
         </div>
 
+        <span class="label">☀️ Active for Selected Day</span>
         <ul id="taskList"></ul>
-        <span class="label">Holding Pen</span>
+        <span class="label">🗓️ Holding Pen</span>
         <ul id="holdingPen"></ul>
     </div>
 
@@ -126,18 +130,18 @@
         }
 
         async function addTask() {
-            const input = document.getElementById('taskInput'), daily = document.getElementById('dailyInput');
+            const input = document.getElementById('taskInput'), dInput = document.getElementById('dateInput'), daily = document.getElementById('dailyInput');
             if (!input.value.trim()) return;
             tasks.push({
-                id: Date.now(), text: input.value.trim(), date: document.getElementById('viewDateSelector').value,
+                id: Date.now(), text: input.value.trim(), date: dInput.value || getToday(),
                 isDaily: daily.checked, log: {}
             });
-            input.value = ''; render(); await saveToCloud();
+            input.value = ''; dInput.value = ''; daily.checked = false;
+            render(); await saveToCloud();
         }
 
         function calculateStats(t) {
-            let score = 0;
-            let currentStreak = 0;
+            let score = 0, currentStreak = 0;
             const dates = Object.keys(t.log || {}).sort();
             
             dates.forEach((date, idx) => {
@@ -148,26 +152,17 @@
                     score += isBossDay ? 5 : 1;
                     currentStreak++;
                 } else if (status === 'FAIL') {
-                    if (isBossDay) {
-                        score -= 50; // Massive Boss Failure
-                    } else {
+                    if (isBossDay) { score -= 50; } else {
                         let penalty = currentStreak >= 30 ? 20 : (currentStreak >= 10 ? 5 : 1);
                         score -= penalty;
                     }
                     currentStreak = 0;
-
-                    // 2 Consecutive Fails Check (-10)
                     if (idx > 0) {
                         const prevDate = new Date(dates[idx-1]);
                         const currDate = new Date(date);
-                        if (Math.ceil(Math.abs(currDate - prevDate) / 86400000) === 1 && t.log[dates[idx-1]] === 'FAIL') {
-                            score -= 10;
-                        }
+                        if (Math.ceil(Math.abs(currDate - prevDate) / 86400000) === 1 && t.log[dates[idx-1]] === 'FAIL') score -= 10;
                     }
-                    
-                    // 3 Fails in 7-day Rolling Window (-10)
-                    const weekAgo = new Date(date);
-                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    const weekAgo = new Date(date); weekAgo.setDate(weekAgo.getDate() - 7);
                     const failsInWindow = dates.filter(d => {
                         const dDate = new Date(d);
                         return dDate <= new Date(date) && dDate > weekAgo && t.log[d] === 'FAIL';
@@ -193,6 +188,11 @@
             render(); await saveToCloud();
         }
 
+        async function promoteTask(id) {
+            tasks = tasks.map(t => t.id === id ? {...t, date: getToday()} : t);
+            render(); await saveToCloud();
+        }
+
         function render() {
             const viewDate = document.getElementById('viewDateSelector').value;
             const list = document.getElementById('taskList'); list.innerHTML = '';
@@ -205,24 +205,28 @@
                 const status = t.log ? t.log[viewDate] : null;
                 const isActive = t.isDaily || t.date === viewDate;
                 
-                const isBossMode = (currentStreak + 1) % 7 === 0 && currentStreak > 0 && !status;
+                if (isActive) {
+                    const isBossMode = (currentStreak + 1) % 7 === 0 && currentStreak > 0 && !status;
+                    const li = document.createElement('li');
+                    if (isBossMode) li.classList.add('boss-mode');
+                    if (status === 'DONE') li.classList.add('state-done');
+                    if (status === 'FAIL') li.classList.add('state-failed');
 
-                const li = document.createElement('li');
-                if (isBossMode) li.classList.add('boss-mode');
-                if (status === 'DONE') li.classList.add('state-done');
-                if (status === 'FAIL') li.classList.add('state-failed');
-
-                const icon = status === 'DONE' ? '✓' : (status === 'FAIL' ? '✕' : (isBossMode ? '👹' : ''));
-                const sClass = status === 'DONE' ? 'done' : (status === 'FAIL' ? 'failed' : '');
-
-                li.innerHTML = `
-                    <div class="status-box ${sClass}" onclick="cycleStatus(${t.id})">${icon}</div>
-                    <span class="task-text">${isBossMode ? 'BOSS: ' : ''}${t.text}</span>
-                    <span class="badge" style="background:#eee">PTS ${score.toFixed(1)}</span>
-                    ${currentStreak > 0 ? `<span class="badge" style="background:#fff3cd">🔥 ${currentStreak}</span>` : ''}
-                `;
-
-                isActive ? list.appendChild(li) : pen.appendChild(li);
+                    li.innerHTML = `
+                        <div class="status-box ${status === 'DONE' ? 'done' : (status === 'FAIL' ? 'failed' : '')}" onclick="cycleStatus(${t.id})">${status === 'DONE' ? '✓' : (status === 'FAIL' ? '✕' : (isBossMode ? '👹' : ''))}</div>
+                        <span class="task-text">${isBossMode ? 'BOSS: ' : ''}${t.text}</span>
+                        <span class="badge" style="background:#eee">PTS ${score.toFixed(1)}</span>
+                        ${currentStreak > 0 ? `<span class="badge" style="background:#fff3cd">🔥 ${currentStreak}</span>` : ''}
+                    `;
+                    list.appendChild(li);
+                } else {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="task-text">${t.text} <small style="color:#aaa">(${t.date})</small></span>
+                        <button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>
+                    `;
+                    pen.appendChild(li);
+                }
             });
 
             document.getElementById('globalScore').innerText = totalRep.toFixed(1);
