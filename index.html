@@ -43,9 +43,9 @@
         .task-text { flex: 1; font-weight: 600; font-size: 16px; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
         .streak-badge { background: #fff3cd; color: #856404; }
+        .danger-badge { background: #ff4444; color: white; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .promo-btn { background: #eef; color: var(--primary); border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; margin-right: 10px; }
-        
-        /* Menu Styles */
         .menu-container { position: relative; }
         .menu-dots { cursor: pointer; padding: 5px; font-size: 1.4rem; color: #ccc; line-height: 1; }
         .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 120px; overflow: hidden; }
@@ -212,7 +212,8 @@
                     individualScore: 0,
                     streak: 0,
                     lastCompletedDate: null,
-                    penalizedDates: [] 
+                    penalizedDates: [],
+                    missedHistory: []
                 });
             }
 
@@ -257,7 +258,6 @@
             const today = getToday();
             let stateChanged = false;
             
-            // Sort by date (Soonest first)
             tasks.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             tasks = tasks.map(t => {
@@ -266,12 +266,45 @@
                     t.done = false;
                     stateChanged = true;
                 }
+                
                 let deadline = t.isDaily ? (t.lastCompletedDate || t.date) : t.date;
+                
+                // Penalty Logic
                 if (deadline && deadline < today && isTodayActive && !t.done) {
                     if (!t.penalizedDates.includes(today)) {
+                        // Standard Penalty
                         t.individualScore -= 1; 
                         t.streak = 0; 
                         t.penalizedDates.push(today);
+                        
+                        // Track Missed History
+                        if(!t.missedHistory) t.missedHistory = [];
+                        t.missedHistory.push(today);
+
+                        // --- MAJOR PENALTY CHECK ---
+                        let triggerMajor = false;
+                        const history = t.missedHistory;
+
+                        // 1. Check 2 misses in a row
+                        if (history.length >= 2) {
+                            const last = new Date(history[history.length - 1]);
+                            const prev = new Date(history[history.length - 2]);
+                            if (Math.ceil(Math.abs(last - prev) / (1000 * 60 * 60 * 24)) === 1) triggerMajor = true;
+                        }
+
+                        // 2. Check 3 misses in a 7-day rolling window
+                        if (!triggerMajor && history.length >= 3) {
+                            const weekAgo = new Date();
+                            weekAgo.setDate(weekAgo.getDate() - 7);
+                            const recentMisses = history.filter(d => new Date(d) >= weekAgo);
+                            if (recentMisses.length >= 3) triggerMajor = true;
+                        }
+
+                        if (triggerMajor) {
+                            t.individualScore -= 10;
+                            alert(`⚠️ MAJOR PENALTY: -10pts for "${t.text}"`);
+                        }
+
                         stateChanged = true;
                     }
                 }
@@ -320,6 +353,11 @@
                 const li = document.createElement('li');
                 const isTodayActive = (t.isDaily || t.date === today);
                 
+                // Danger Logic for rendering
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                const recentMissCount = (t.missedHistory || []).filter(d => new Date(d) >= weekAgo).length;
+
                 const menuHtml = `
                     <div class="menu-container">
                         <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
@@ -337,6 +375,7 @@
                         <input type="checkbox" ${t.done ? 'checked disabled' : ''} onchange="complete(${t.id}, 'FULL')">
                         ${!t.done ? `<div class="min-effort-btn" onclick="complete(${t.id}, 'MINIMAL')">⚡</div>` : ''}
                         <span class="task-text">${t.text}</span>
+                        ${recentMissCount >= 2 && !t.done ? `<span class="badge danger-badge">⚠️ DANGER</span>` : ''}
                         <span class="badge">PTS ${t.individualScore.toFixed(1)}</span>
                         ${t.streak > 0 ? `<span class="badge streak-badge">🔥 ${t.streak}</span>` : ''}
                         ${menuHtml}`;
