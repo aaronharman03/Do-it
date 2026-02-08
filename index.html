@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Calendar Edition</title>
+    <title>Reputation: Calendar & Vault Edition</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -17,6 +17,7 @@
         
         /* Dashboard */
         .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; position: relative; border-bottom: 5px solid #ddd;}
+        .logout-btn { position: absolute; top: 10px; right: 10px; font-size: 0.6rem; cursor: pointer; background: #eee; border: none; padding: 5px; border-radius: 4px; }
         .global-score { font-size: 3.2rem; font-weight: 900; margin: 5px 0; line-height: 1; text-align: center;}
         .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; display: block; }
         
@@ -27,42 +28,46 @@
         
         /* Calendar Nav */
         .calendar-nav { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 10px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-        .calendar-nav input { border: none; font-weight: bold; font-family: inherit; font-size: 1rem; cursor: pointer; }
+        .nav-btn { border:none; background:none; cursor:pointer; font-size: 1.2rem; padding: 0 10px; }
+        .calendar-nav input { border: none; font-weight: bold; font-family: inherit; font-size: 1rem; cursor: pointer; text-align: center; }
 
         /* Tasks */
         .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
         ul { list-style: none; padding: 0; }
-        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; transition: 0.2s;}
+        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; }
         li.done { opacity: 0.6; }
         li.done .task-text { text-decoration: line-through; }
         li.pos-task { border-left-color: var(--success); }
         li.neg-task { border-left-color: var(--danger); }
         input[type="checkbox"] { width: 24px; height: 24px; margin-right: 12px; cursor: pointer; }
         .task-text { flex: 1; font-weight: 600; }
-        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; }
+        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
         .danger-badge { background: #ff4444; color: white; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         
         .menu-dots { cursor: pointer; padding: 5px; font-size: 1.2rem; color: #ccc; }
         .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 100px; }
         .menu-content.show { display: block; }
-        .menu-content button { display: block; width: 100%; padding: 10px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; }
+        .menu-content button { display: block; width: 100%; padding: 10px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="auth-screen">
+        <span class="label">Cloud Vault Access</span>
         <input type="email" id="email" class="auth-input" placeholder="Email">
         <input type="password" id="password" class="auth-input" placeholder="Password">
-        <button onclick="handleAuth('login')" class="auth-btn">Login</button>
+        <button onclick="handleAuth('login')" class="auth-btn" style="margin-bottom: 10px;">Login</button>
+        <button onclick="handleAuth('signup')" class="auth-btn" style="background: #666;">Create Account</button>
     </div>
 
     <div id="app-ui">
         <div class="dashboard">
+            <button class="logout-btn" onclick="logout()">LOGOUT</button>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="label">Reputation</span>
-                <span class="label">Best: <span id="pbScore" style="color:var(--gold)">0.0</span></span>
+                <span class="label">PB: <span id="pbScore" style="color:var(--gold)">0.0</span></span>
             </div>
             <div class="global-score" id="globalScore">0.0</div>
             <div class="bar-bg">
@@ -70,23 +75,29 @@
                 <div id="ghostMarker"></div>
             </div>
             <span class="label" id="nextMedalLabel">Next: Bronze (10)</span>
-        </div>
-
-        <div class="calendar-nav">
-            <button onclick="changeViewDate(-1)" style="border:none; background:none; cursor:pointer;">◀</button>
-            <input type="date" id="viewDateSelector" onchange="render()">
-            <button onclick="changeViewDate(1)" style="border:none; background:none; cursor:pointer;">▶</button>
-        </div>
-
-        <div class="input-group">
-            <input type="text" id="taskInput" placeholder="New Mission...">
-            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
-                <label style="font-size: 12px;"><input type="checkbox" id="dailyInput"> DAILY</label>
-                <button id="addBtn" onclick="addTask()" style="margin-left: auto; background:#000; color:#fff; border:none; padding:8px 15px; border-radius:8px;">ADD</button>
+            <div style="display: flex; justify-content: space-around; margin-top: 10px;">
+                <span id="m1">🥉</span> <span id="m2">🥈</span> <span id="m3">🥇</span> <span id="m4">👑</span>
             </div>
         </div>
 
+        <div class="calendar-nav">
+            <button onclick="changeViewDate(-1)" class="nav-btn">◀</button>
+            <input type="date" id="viewDateSelector" onchange="render()">
+            <button onclick="changeViewDate(1)" class="nav-btn">▶</button>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="taskInput" placeholder="New Mission..." autocomplete="off">
+            <div style="display: flex; gap: 10px; margin-top: 12px; align-items: center;">
+                <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
+                <button id="addBtn" onclick="addTask()" style="margin-left: auto; background:#000; color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight: 800;">ADD</button>
+            </div>
+        </div>
+
+        <span class="label">☀️ Active for Selected Day</span>
         <ul id="taskList"></ul>
+        <span class="label">🗓️ Holding Pen (One-offs)</span>
+        <ul id="holdingPen"></ul>
     </div>
 
     <script>
@@ -104,34 +115,53 @@
 
         let tasks = [], userId = null, yesterdayScore = 0, personalBest = 0;
         const getToday = () => new Date().toISOString().split('T')[0];
-        
-        // Initialize view date to today
         document.getElementById('viewDateSelector').value = getToday();
 
         auth.onAuthStateChanged(async (user) => {
-            if (user) { userId = user.uid; document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-ui').style.display = 'block'; await syncWithCloud(); }
+            if (user) { 
+                userId = user.uid; 
+                document.getElementById('auth-screen').style.display = 'none'; 
+                document.getElementById('app-ui').style.display = 'block'; 
+                await syncWithCloud(); 
+            } else {
+                userId = null;
+                document.getElementById('auth-screen').style.display = 'block';
+                document.getElementById('app-ui').style.display = 'none';
+            }
         });
 
         async function handleAuth(type) {
             const e = document.getElementById('email').value, p = document.getElementById('password').value;
-            await auth.signInWithEmailAndPassword(e, p).catch(err => alert(err.message));
+            try { type === 'signup' ? await auth.createUserWithEmailAndPassword(e, p) : await auth.signInWithEmailAndPassword(e, p); }
+            catch (err) { alert(err.message); }
         }
 
+        function logout() { auth.signOut(); }
+
         async function syncWithCloud() {
+            if (!userId) return;
             const doc = await db.collection('users').doc(userId).get();
             if (doc.exists) {
                 const data = doc.data();
                 tasks = data.tasks || [];
                 personalBest = data.personalBest || 0;
                 yesterdayScore = data.yesterdayScore || 0;
+                const today = getToday();
+                if (data.lastLoginDate !== today) {
+                    yesterdayScore = parseFloat(tasks.reduce((acc, t) => acc + (t.individualScore || 0), 0).toFixed(1));
+                    await db.collection('users').doc(userId).set({ yesterdayScore, lastLoginDate: today }, { merge: true });
+                }
             }
             render();
         }
 
         async function saveToCloud() {
+            if (!userId) return;
             const currentTotal = parseFloat(tasks.reduce((acc, t) => acc + (t.individualScore || 0), 0).toFixed(1));
             if (currentTotal > personalBest) personalBest = currentTotal;
-            await db.collection('users').doc(userId).set({ tasks, personalBest, yesterdayScore }, { merge: true });
+            try {
+                await db.collection('users').doc(userId).set({ tasks, personalBest, yesterdayScore }, { merge: true });
+            } catch (e) { console.error("Save Error", e); }
         }
 
         function changeViewDate(days) {
@@ -145,11 +175,12 @@
             const input = document.getElementById('taskInput'), daily = document.getElementById('dailyInput');
             if (!input.value.trim()) return;
             tasks.push({
-                id: Date.now(), text: input.value, date: document.getElementById('viewDateSelector').value,
+                id: Date.now(), text: input.value.trim(), date: document.getElementById('viewDateSelector').value,
                 isDaily: daily.checked, individualScore: 0, streak: 0,
                 completedDates: [], penalizedDates: [], missedHistory: []
             });
-            input.value = ''; render(); await saveToCloud();
+            input.value = ''; daily.checked = false;
+            render(); await saveToCloud();
         }
 
         async function toggleTask(id) {
@@ -158,16 +189,13 @@
                 if (t.id === id) {
                     if (!t.completedDates) t.completedDates = [];
                     if (t.completedDates.includes(targetDate)) {
-                        // Uncheck
                         t.completedDates = t.completedDates.filter(d => d !== targetDate);
                         t.individualScore -= 1;
                         if(t.isDaily) t.streak = Math.max(0, t.streak - 1);
                     } else {
-                        // Check
                         t.completedDates.push(targetDate);
                         t.individualScore += 1;
                         if(t.isDaily) t.streak++;
-                        // If we check it, it's no longer a "miss" for this day
                         t.penalizedDates = (t.penalizedDates || []).filter(d => d !== targetDate);
                         t.missedHistory = (t.missedHistory || []).filter(d => d !== targetDate);
                     }
@@ -178,7 +206,7 @@
         }
 
         async function deleteTask(id) {
-            if(confirm("Delete task?")) { tasks = tasks.filter(t => t.id !== id); render(); await saveToCloud(); }
+            if(confirm("Delete mission?")) { tasks = tasks.filter(t => t.id !== id); render(); await saveToCloud(); }
         }
 
         function toggleMenu(id) {
@@ -195,23 +223,23 @@
             const today = getToday();
             let stateChanged = false;
 
-            // Penalty Engine (Run against today)
+            // Penalty Engine
             tasks = tasks.map(t => {
-                const lastLog = t.completedDates && t.completedDates.length ? t.completedDates.sort().reverse()[0] : t.date;
+                const lastLog = (t.completedDates && t.completedDates.length) ? t.completedDates.sort().reverse()[0] : t.date;
                 if (lastLog < today && (t.isDaily || t.date === today) && !t.penalizedDates.includes(today) && !t.completedDates.includes(today)) {
-                    // Escalated
                     let penalty = t.streak >= 30 ? 20 : (t.streak >= 10 ? 5 : 1);
                     t.individualScore -= penalty;
                     if(!t.missedHistory) t.missedHistory = [];
                     t.missedHistory.push(today);
                     
-                    // -10 Consistency check
                     let major = false;
-                    if (t.missedHistory.length >= 2) {
-                        const h = t.missedHistory;
+                    const h = t.missedHistory;
+                    if (h.length >= 2) {
                         const d = Math.ceil(Math.abs(new Date(h[h.length-1]) - new Date(h[h.length-2])) / 86400000);
                         if (d === 1) major = true;
                     }
+                    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+                    if (!major && h.filter(x => new Date(x) >= weekAgo).length >= 3) major = true;
                     if (major) t.individualScore -= 10;
 
                     t.streak = 0;
@@ -227,23 +255,28 @@
             document.getElementById('globalScore').innerText = total.toFixed(1);
             document.getElementById('pbScore').innerText = personalBest.toFixed(1);
 
-            // Medal Bar
             const milestones = [{id:'m1', val:50}, {id:'m2', val:150}, {id:'m3', val:300}, {id:'m4', val:500}];
             let next = milestones.find(m => total < m.val) || {val: total}, prev = 0;
             milestones.forEach(m => { 
-                if (total >= m.val) { document.getElementById(m.id).classList.add('unlocked'); prev = m.val; }
-                else document.getElementById(m.id).classList.remove('unlocked');
+                const el = document.getElementById(m.id);
+                if (total >= m.val) { el.style.filter = "grayscale(0)"; el.style.opacity = "1"; prev = m.val; }
+                else { el.style.filter = "grayscale(1)"; el.style.opacity = "0.2"; }
             });
             document.getElementById('medalProgressBar').style.width = Math.max(0, ((total - prev) / (next.val - prev)) * 100) + "%";
 
-            // Render List
-            const list = document.getElementById('taskList'); list.innerHTML = '';
-            tasks.forEach(t => {
-                // Determine if task should show on this specific viewDate
-                const isActive = t.isDaily || t.date === viewDate;
-                if (!isActive) return;
+            // Ghost Marker
+            const ghost = document.getElementById('ghostMarker');
+            let gPrev = 0; milestones.forEach(m => { if (yesterdayScore >= m.val) gPrev = m.val; });
+            let gNext = milestones.find(m => yesterdayScore < m.val) || {val: yesterdayScore};
+            ghost.style.left = Math.max(0, ((yesterdayScore - gPrev) / (gNext.val - gPrev)) * 100) + "%";
 
-                const isDone = t.completedDates && t.completedDates.includes(viewDate);
+            const list = document.getElementById('taskList'); 
+            const pen = document.getElementById('holdingPen');
+            list.innerHTML = ''; pen.innerHTML = '';
+
+            tasks.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(t => {
+                const isActive = t.isDaily || t.date === viewDate;
+                const isDone = (t.completedDates || []).includes(viewDate);
                 const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
                 const risk = (t.missedHistory || []).filter(d => new Date(d) >= weekAgo).length >= 2;
 
@@ -256,13 +289,15 @@
                     <span class="task-text">${t.text}</span>
                     ${risk && !isDone && viewDate === today ? '<span class="badge danger-badge">⚠️ RISK</span>' : ''}
                     <span class="badge" style="background:#eee">PTS ${t.individualScore.toFixed(1)}</span>
-                    <span class="badge" style="background:#fff3cd">🔥 ${t.streak}</span>
+                    ${t.streak > 0 ? `<span class="badge" style="background:#fff3cd">🔥 ${t.streak}</span>` : ''}
                     <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
                     <div class="menu-content" id="menu-${t.id}">
-                        <button onclick="deleteTask(${t.id})" style="color:var(--danger)">Delete</button>
+                        <button onclick="deleteTask(${t.id})" style="color:var(--danger)">DELETE</button>
                     </div>
                 `;
-                list.appendChild(li);
+                
+                if (isActive) list.appendChild(li);
+                else if (!t.isDaily && t.date > viewDate) pen.appendChild(li);
             });
         }
     </script>
