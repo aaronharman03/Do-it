@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Milestone Edition</title>
+    <title>Reputation: Ultimate Edition</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <link rel="manifest" href="manifest.json">
-
     <style>
         :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; }
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
@@ -16,79 +14,65 @@
         .auth-input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .auth-btn { background: #000; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
         #app-ui { display: none; }
-        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center; border-bottom: 5px solid #ddd; position: relative; }
-        .logout-btn { position: absolute; top: 10px; right: 10px; font-size: 0.6rem; cursor: pointer; background: #eee; border: none; padding: 5px; border-radius: 4px; }
+        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; position: relative; border-bottom: 5px solid #ddd;}
         .global-score { font-size: 3.2rem; font-weight: 900; margin: 5px 0; line-height: 1; }
         .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; display: block; }
-        .bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 8px 0; }
-        #progressBar { height: 100%; background: var(--success); width: 0%; transition: width 0.6s ease; }
+        .bar-bg { width: 100%; height: 10px; background: #eee; border-radius: 4px; overflow: hidden; margin: 8px 0; position: relative; }
         #medalProgressBar { height: 100%; background: var(--gold); width: 0%; transition: width 0.6s ease; }
+        #ghostMarker { position: absolute; top: 0; width: 3px; height: 100%; background: rgba(0,0,0,0.4); z-index: 2; transition: left 0.6s ease; }
         .milestones { display: flex; justify-content: space-around; margin: 15px 0; background: #fafafa; padding: 12px; border-radius: 16px; }
         .medal { font-size: 1.6rem; filter: grayscale(1); opacity: 0.2; transition: 0.5s; }
         .medal.unlocked { filter: grayscale(0); opacity: 1; transform: scale(1.1); }
-        .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
         .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
-        input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
-        button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; transition: 0.3s; }
+        button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; }
         ul { list-style: none; padding: 0; }
-        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: 0.3s; position: relative; }
-        #todayList li { border-left: 6px solid #ccc; }
-        #todayList li.pos-task { border-left-color: var(--success); background: #fafffb; }
-        #todayList li.neg-task { border-left-color: var(--danger); background: #fff5f5; }
-        li.done { opacity: 0.5; }
-        li.done .task-text { text-decoration: line-through; }
-        input[type="checkbox"] { width: 24px; height: 24px; margin-right: 12px; cursor: pointer; }
-        .min-effort-btn { background: #fff3cd; color: #856404; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; flex-shrink: 0; }
-        .task-text { flex: 1; font-weight: 600; font-size: 16px; }
+        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc;}
+        li.pos-task { border-left-color: var(--success); }
+        li.neg-task { border-left-color: var(--danger); }
+        .task-text { flex: 1; font-weight: 600; font-size: 15px; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
-        .streak-badge { background: #fff3cd; color: #856404; }
         .danger-badge { background: #ff4444; color: white; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        .promo-btn { background: #eef; color: var(--primary); border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; margin-right: 10px; }
-        .menu-container { position: relative; }
-        .menu-dots { cursor: pointer; padding: 5px; font-size: 1.4rem; color: #ccc; line-height: 1; }
-        .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 120px; overflow: hidden; }
+        .log-btn { font-size: 0.6rem; padding: 6px; background: #000; color: #fff; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        .menu-dots { cursor: pointer; padding: 5px; font-size: 1.2rem; color: #ccc; }
+        .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 100px; }
         .menu-content.show { display: block; }
-        .menu-content button { display: block; width: 100%; padding: 12px; text-align: left; border: none; background: none; font-size: 14px; cursor: pointer; font-weight: 600; }
-        .menu-content button:hover { background: #f8f9fa; }
+        .menu-content button { display: block; width: 100%; padding: 10px; border: none; background: none; text-align: left; cursor: pointer; font-size: 12px; }
     </style>
 </head>
 <body>
 
     <div id="auth-screen">
-        <span class="label">Cloud Vault Access</span>
+        <span class="label">Identity Vault Access</span>
         <input type="email" id="email" class="auth-input" placeholder="Email">
         <input type="password" id="password" class="auth-input" placeholder="Password">
-        <button onclick="handleAuth('login')" class="auth-btn" style="margin-bottom: 10px;">Login</button>
-        <button onclick="handleAuth('signup')" class="auth-btn" style="background: #666;">Create Account</button>
+        <button onclick="handleAuth('login')" class="auth-btn">Authorize</button>
     </div>
 
     <div id="app-ui">
         <div class="dashboard">
-            <button class="logout-btn" onclick="logout()">LOGOUT</button>
-            <span class="label">Total Reputation</span>
-            <div class="global-score" id="globalScore">0.0</div>
-            
-            <span class="label" id="nextMedalLabel" style="font-size: 0.55rem; margin-top: 10px;">Next: Bronze (10)</span>
-            <div class="bar-bg" style="height: 6px;"><div id="medalProgressBar"></div></div>
-
-            <div class="milestones">
-                <div class="medal" id="m1">🥉</div>
-                <div class="medal" id="m2">🥈</div>
-                <div class="medal" id="m3">🥇</div>
-                <div class="medal" id="m4">👑</div>
+            <div style="display: flex; justify-content: space-between;">
+                <div><span class="label">Total Reputation</span><div class="global-score" id="globalScore">0.0</div></div>
+                <div style="text-align: right;"><span class="label">Personal Best</span><div id="pbScore" style="font-size: 1.4rem; font-weight: 900; color: var(--gold);">0.0</div></div>
             </div>
-
-            <div class="bar-bg"><div id="progressBar"></div></div>
-            <span class="label" id="progressText" style="font-size: 0.55rem;">0% TODAY</span>
+            <div class="bar-bg">
+                <div id="medalProgressBar"></div>
+                <div id="ghostMarker"></div>
+            </div>
+            <span class="label" id="nextMedalLabel">Next: Bronze (10)</span>
+            <div class="milestones">
+                <div class="medal" id="m1">🥉</div><div class="medal" id="m2">🥈</div>
+                <div class="medal" id="m3">🥇</div><div class="medal" id="m4">👑</div>
+            </div>
         </div>
 
         <div class="input-group">
-            <input type="text" id="taskInput" placeholder="New thought or mission..." autocomplete="off">
+            <input type="text" id="taskInput" placeholder="Enter new habit or thought...">
             <div class="controls">
                 <input type="date" id="dateInput">
-                <label style="font-size: 13px; font-weight: 700; cursor:pointer;"><input type="checkbox" id="dailyInput"> DAILY</label>
+                <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
                 <button id="addBtn" onclick="addTask()">ADD</button>
             </div>
         </div>
@@ -106,290 +90,192 @@
             projectId: "do-it-685b9",
             storageBucket: "do-it-685b9.firebasestorage.app",
             messagingSenderId: "344979931866",
-            appId: "1:344979931866:web:0b2e5cd04e883f33cfdbe3",
-            measurementId: "G-QQV2ZRQSES"
+            appId: "1:344979931866:web:0b2e5cd04e883f33cfdbe3"
         };
-
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        db.enablePersistence().catch(err => console.error("Persistence failed", err.code));
-
-        let tasks = [];
-        let userId = null;
-        let editingTaskId = null;
+        let tasks = [], userId = null, yesterdayScore = 0, personalBest = 0;
+        const getToday = () => new Date().toISOString().split('T')[0];
 
         auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                userId = user.uid;
-                document.getElementById('auth-screen').style.display = 'none';
-                document.getElementById('app-ui').style.display = 'block';
-                await syncWithCloud();
-            } else {
-                userId = null;
-                tasks = [];
-                document.getElementById('auth-screen').style.display = 'block';
-                document.getElementById('app-ui').style.display = 'none';
+            if (user) { 
+                userId = user.uid; 
+                document.getElementById('auth-screen').style.display = 'none'; 
+                document.getElementById('app-ui').style.display = 'block'; 
+                await syncWithCloud(); 
             }
         });
 
         async function handleAuth(type) {
-            const e = document.getElementById('email').value;
-            const p = document.getElementById('password').value;
-            try {
-                if (type === 'signup') await auth.createUserWithEmailAndPassword(e, p);
-                else await auth.signInWithEmailAndPassword(e, p);
-            } catch (err) { alert(err.message); }
+            const e = document.getElementById('email').value, p = document.getElementById('password').value;
+            await auth.signInWithEmailAndPassword(e, p).catch(err => alert(err.message));
         }
 
-        function logout() { auth.signOut(); }
-
         async function syncWithCloud() {
-            if (!userId) return;
-            try {
-                const doc = await db.collection('users').doc(userId).get();
-                if (doc.exists) { tasks = doc.data().tasks || []; }
-                render(); 
-            } catch (err) { console.error("Sync Error:", err); }
+            const doc = await db.collection('users').doc(userId).get();
+            if (doc.exists) {
+                const data = doc.data();
+                tasks = data.tasks || [];
+                personalBest = data.personalBest || 0;
+                yesterdayScore = data.yesterdayScore || 0;
+                const today = getToday();
+                if (data.lastLoginDate !== today) {
+                    yesterdayScore = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
+                    await db.collection('users').doc(userId).set({ yesterdayScore, lastLoginDate: today }, { merge: true });
+                }
+            }
+            render();
         }
 
         async function saveToCloud() {
-            if (!userId) return;
-            try {
-                await db.collection('users').doc(userId).set({ tasks }, { merge: true });
-            } catch (err) { console.error("Save Error:", err); }
+            const currentTotal = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
+            if (currentTotal > personalBest) personalBest = currentTotal;
+            await db.collection('users').doc(userId).set({ tasks, personalBest, yesterdayScore }, { merge: true });
         }
 
-        const getToday = () => new Date().toISOString().split('T')[0];
+        async function addTask() {
+            const input = document.getElementById('taskInput'), dInput = document.getElementById('dateInput'), daily = document.getElementById('dailyInput');
+            if (!input.value.trim()) return;
+            tasks.push({
+                id: Date.now(), text: input.value, date: dInput.value || getToday(),
+                isDaily: daily.checked, individualScore: 0, streak: 0,
+                lastCompletedDate: null, penalizedDates: [], missedHistory: []
+            });
+            input.value = ''; dInput.value = ''; daily.checked = false;
+            render(); await saveToCloud();
+        }
+
+        async function complete(id, customDate = null) {
+            const logDate = customDate || getToday();
+            tasks = tasks.map(t => {
+                if (t.id === id) {
+                    t.lastCompletedDate = logDate;
+                    t.individualScore += 1;
+                    if(t.isDaily) t.streak++;
+                    // Remove penalty if logging for a previously missed day
+                    t.penalizedDates = (t.penalizedDates || []).filter(d => d !== logDate);
+                }
+                return t;
+            });
+            render(); await saveToCloud();
+        }
+
+        function promptDate(id) {
+            const d = prompt("Log completion for date (YYYY-MM-DD):", getToday());
+            if (d) complete(id, d);
+        }
 
         function toggleMenu(id) {
             event.stopPropagation();
-            document.querySelectorAll('.menu-content').forEach(m => {
-                if (m.id !== `menu-${id}`) m.classList.remove('show');
-            });
-            document.getElementById(`menu-${id}`).classList.toggle('show');
+            const el = document.getElementById(`menu-${id}`);
+            document.querySelectorAll('.menu-content').forEach(m => m !== el && m.classList.remove('show'));
+            el.classList.toggle('show');
         }
 
         window.onclick = () => document.querySelectorAll('.menu-content').forEach(m => m.classList.remove('show'));
 
-        function editTask(id) {
-            const t = tasks.find(task => task.id === id);
-            editingTaskId = id;
-            document.getElementById('taskInput').value = t.text;
-            document.getElementById('dateInput').value = t.date;
-            document.getElementById('dailyInput').checked = t.isDaily;
-            const btn = document.getElementById('addBtn');
-            btn.innerText = "SAVE";
-            btn.style.background = "var(--primary)";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        async function addTask() {
-            const input = document.getElementById('taskInput');
-            const dateInput = document.getElementById('dateInput');
-            const dailyInput = document.getElementById('dailyInput');
-            const addBtn = document.getElementById('addBtn');
-            if (!input.value.trim()) return;
-
-            if (editingTaskId) {
-                tasks = tasks.map(t => t.id === editingTaskId ? {
-                    ...t,
-                    text: input.value.trim(),
-                    date: dateInput.value || getToday(),
-                    isDaily: dailyInput.checked
-                } : t);
-                editingTaskId = null;
-                addBtn.innerText = "ADD";
-                addBtn.style.background = "#000";
-            } else {
-                tasks.push({
-                    id: Date.now(),
-                    text: input.value.trim(),
-                    date: dateInput.value || getToday(),
-                    isDaily: dailyInput.checked,
-                    done: false,
-                    individualScore: 0,
-                    streak: 0,
-                    lastCompletedDate: null,
-                    penalizedDates: [],
-                    missedHistory: []
-                });
-            }
-
-            input.value = ''; dateInput.value = ''; dailyInput.checked = false;
-            render(); 
-            await saveToCloud();
-        }
-
-        async function complete(id, type) {
-            tasks = tasks.map(t => {
-                if (t.id === id && !t.done) {
-                    t.done = true; 
-                    t.lastCompletedDate = getToday();
-                    if (type === 'FULL') { 
-                        t.individualScore += 1; 
-                        if(t.isDaily) t.streak += 1; 
-                    } else { 
-                        t.individualScore += 0.1; 
-                    }
-                }
-                return t;
-            });
-            render();
-            await saveToCloud();
-        }
-
-        async function promoteTask(id) {
-            tasks = tasks.map(t => t.id === id ? {...t, date: getToday()} : t);
-            render();
-            await saveToCloud();
-        }
-
         async function deleteTask(id) {
-            if(confirm("Erase task?")) {
-                tasks = tasks.filter(t => t.id !== id);
-                render();
-                await saveToCloud();
+            if(confirm("Permanently erase this task?")) { 
+                tasks = tasks.filter(t => t.id !== id); 
+                render(); 
+                await saveToCloud(); 
             }
         }
 
         function render() {
             const today = getToday();
             let stateChanged = false;
-            
+
+            // Sorting: Chronological
             tasks.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             tasks = tasks.map(t => {
-                const isTodayActive = (t.isDaily || t.date === today);
-                if (t.isDaily && t.lastCompletedDate !== today && t.done === true) {
-                    t.done = false;
-                    stateChanged = true;
-                }
-                
                 let deadline = t.isDaily ? (t.lastCompletedDate || t.date) : t.date;
-                
-                // Penalty Logic
-                if (deadline && deadline < today && isTodayActive && !t.done) {
-                    if (!t.penalizedDates.includes(today)) {
-                        // Standard Penalty
-                        t.individualScore -= 1; 
-                        t.streak = 0; 
-                        t.penalizedDates.push(today);
-                        
-                        // Track Missed History
-                        if(!t.missedHistory) t.missedHistory = [];
-                        t.missedHistory.push(today);
+                // Penalty Calculation
+                if (deadline < today && (t.isDaily || t.date === today) && !t.penalizedDates.includes(today)) {
+                    let penalty = t.streak >= 30 ? 20 : (t.streak >= 10 ? 5 : 1);
+                    t.individualScore -= penalty;
+                    
+                    if(!t.missedHistory) t.missedHistory = [];
+                    t.missedHistory.push(today);
 
-                        // --- MAJOR PENALTY CHECK ---
-                        let triggerMajor = false;
-                        const history = t.missedHistory;
-
-                        // 1. Check 2 misses in a row
-                        if (history.length >= 2) {
-                            const last = new Date(history[history.length - 1]);
-                            const prev = new Date(history[history.length - 2]);
-                            if (Math.ceil(Math.abs(last - prev) / (1000 * 60 * 60 * 24)) === 1) triggerMajor = true;
-                        }
-
-                        // 2. Check 3 misses in a 7-day rolling window
-                        if (!triggerMajor && history.length >= 3) {
-                            const weekAgo = new Date();
-                            weekAgo.setDate(weekAgo.getDate() - 7);
-                            const recentMisses = history.filter(d => new Date(d) >= weekAgo);
-                            if (recentMisses.length >= 3) triggerMajor = true;
-                        }
-
-                        if (triggerMajor) {
-                            t.individualScore -= 10;
-                            alert(`⚠️ MAJOR PENALTY: -10pts for "${t.text}"`);
-                        }
-
-                        stateChanged = true;
+                    // Major Penalty Check (-10)
+                    let major = false;
+                    const h = t.missedHistory;
+                    if (h.length >= 2) {
+                        const d = Math.ceil(Math.abs(new Date(h[h.length-1]) - new Date(h[h.length-2])) / 86400000);
+                        if (d === 1) major = true; // Consecutive miss
                     }
+                    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+                    if (!major && h.filter(x => new Date(x) >= weekAgo).length >= 3) major = true; // Rolling window
+                    
+                    if (major) {
+                        t.individualScore -= 10;
+                    }
+                    
+                    t.streak = 0; // Streak resets after penalty is calculated
+                    t.penalizedDates.push(today);
+                    stateChanged = true;
                 }
                 return t;
             });
 
             if (stateChanged) saveToCloud();
-
-            const totalScore = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
-            document.getElementById('globalScore').innerText = totalScore.toFixed(1);
-            document.getElementById('globalScore').style.color = totalScore >= 0 ? "var(--success)" : "var(--danger)";
+            
+            const total = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
+            document.getElementById('globalScore').innerText = total.toFixed(1);
+            document.getElementById('pbScore').innerText = personalBest.toFixed(1);
 
             const milestones = [
-                { id: 'm1', val: 50, name: 'Bronze' },
-                { id: 'm2', val: 150, name: 'Silver' },
-                { id: 'm3', val: 300, name: 'Gold' },
-                { id: 'm4', val: 500, name: 'Legend' }
+                {id:'m1', val:50, n:'Bronze'}, 
+                {id:'m2', val:150, n:'Silver'}, 
+                {id:'m3', val:300, n:'Gold'}, 
+                {id:'m4', val:500, n:'Legend'}
             ];
             
-            let nextM = milestones.find(m => totalScore < m.val) || { name: 'Max Level', val: totalScore };
-            let prevVal = 0;
-            milestones.forEach((m) => {
-                if (totalScore >= m.val) { 
-                    document.getElementById(m.id).classList.add('unlocked'); 
-                    prevVal = m.val; 
-                } else { 
-                    document.getElementById(m.id).classList.remove('unlocked'); 
-                }
+            let next = milestones.find(m => total < m.val) || {n: 'Max', val: total}, prev = 0;
+            milestones.forEach(m => { 
+                if (total >= m.val) { document.getElementById(m.id).classList.add('unlocked'); prev = m.val; }
+                else document.getElementById(m.id).classList.remove('unlocked');
             });
+            document.getElementById('medalProgressBar').style.width = Math.max(0, ((total - prev) / (next.val - prev)) * 100) + "%";
+            document.getElementById('nextMedalLabel').innerText = `Next: ${next.n} (${next.val})`;
 
-            let medalPercent = (nextM.val - prevVal) > 0 ? Math.max(0, ((totalScore - prevVal) / (nextM.val - prevVal)) * 100) : 100;
-            document.getElementById('medalProgressBar').style.width = medalPercent + "%";
-            document.getElementById('nextMedalLabel').innerText = `Next: ${nextM.name} (${nextM.val} Pts)`;
+            // Ghost Marker (Yesterday's Progress)
+            const ghost = document.getElementById('ghostMarker');
+            let gPrev = 0; milestones.forEach(m => { if (yesterdayScore >= m.val) gPrev = m.val; });
+            let gNext = milestones.find(m => yesterdayScore < m.val) || {val: yesterdayScore};
+            ghost.style.left = Math.max(0, ((yesterdayScore - gPrev) / (gNext.val - gPrev)) * 100) + "%";
 
-            const tList = document.getElementById('todayList');
+            const tList = document.getElementById('todayList'); 
             const uList = document.getElementById('upcomingList');
             tList.innerHTML = ''; uList.innerHTML = '';
 
-            const activeToday = tasks.filter(t => t.isDaily || t.date === today);
-            const doneToday = activeToday.filter(t => t.done).length;
-            const percent = activeToday.length ? Math.round((doneToday / activeToday.length) * 100) : 0;
-            document.getElementById('progressBar').style.width = percent + "%";
-            document.getElementById('progressText').innerText = percent + "% TODAY";
-
             tasks.forEach(t => {
-                const li = document.createElement('li');
-                const isTodayActive = (t.isDaily || t.date === today);
+                const isActive = t.isDaily || t.date === today;
+                const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+                const risk = (t.missedHistory || []).filter(d => new Date(d) >= weekAgo).length >= 2;
                 
-                // Danger Logic for rendering
-                const weekAgo = new Date();
-                weekAgo.setDate(weekAgo.getDate() - 7);
-                const recentMissCount = (t.missedHistory || []).filter(d => new Date(d) >= weekAgo).length;
-
-                const menuHtml = `
-                    <div class="menu-container">
-                        <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
-                        <div class="menu-content" id="menu-${t.id}">
-                            <button onclick="editTask(${t.id})">✏️ Edit</button>
-                            <button onclick="deleteTask(${t.id})" style="color:var(--danger)">🗑️ Delete</button>
-                        </div>
-                    </div>`;
-
-                if (isTodayActive) {
-                    if (t.done) li.classList.add('done');
-                    if (t.individualScore > 0) li.classList.add('pos-task');
-                    else if (t.individualScore < 0) li.classList.add('neg-task');
-                    li.innerHTML = `
-                        <input type="checkbox" ${t.done ? 'checked disabled' : ''} onchange="complete(${t.id}, 'FULL')">
-                        ${!t.done ? `<div class="min-effort-btn" onclick="complete(${t.id}, 'MINIMAL')">⚡</div>` : ''}
-                        <span class="task-text">${t.text}</span>
-                        ${recentMissCount >= 2 && !t.done ? `<span class="badge danger-badge">⚠️ DANGER</span>` : ''}
-                        <span class="badge">PTS ${t.individualScore.toFixed(1)}</span>
-                        ${t.streak > 0 ? `<span class="badge streak-badge">🔥 ${t.streak}</span>` : ''}
-                        ${menuHtml}`;
-                    tList.appendChild(li);
-                } else {
-                    li.innerHTML = `
-                        <span class="task-text">${t.text} <small style="color:#aaa">(${t.date})</small></span>
-                        <button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>
-                        ${menuHtml}`;
-                    uList.appendChild(li);
-                }
+                const li = document.createElement('li');
+                li.classList.add(t.individualScore >= 0 ? 'pos-task' : 'neg-task');
+                
+                li.innerHTML = `
+                    <button class="log-btn" onclick="complete(${t.id})">DONE</button>
+                    <button class="log-btn" style="background:#666" onclick="promptDate(${t.id})">LOG</button>
+                    <span class="task-text">${t.text} ${!isActive ? `<small style="color:#aaa">(${t.date})</small>` : ''}</span>
+                    ${risk && isActive ? '<span class="badge danger-badge">⚠️ RISK</span>' : ''}
+                    <span class="badge" style="background:#eee">PTS ${t.individualScore.toFixed(1)}</span>
+                    <span class="badge" style="background:#fff3cd">🔥 ${t.streak}</span>
+                    <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
+                    <div class="menu-content" id="menu-${t.id}">
+                        <button onclick="deleteTask(${t.id})" style="color:var(--danger)">Delete Task</button>
+                    </div>
+                `;
+                isActive ? tList.appendChild(li) : uList.appendChild(li);
             });
         }
-        document.getElementById('taskInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') addTask(); });
     </script>
 </body>
 </html>
