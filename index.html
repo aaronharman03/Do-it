@@ -156,6 +156,7 @@
                     }
                     currentStreak = 0;
 
+                    // 2 Consecutive Fails Check (-10)
                     if (idx > 0) {
                         const prevDate = new Date(dates[idx-1]);
                         const currDate = new Date(date);
@@ -163,6 +164,15 @@
                             score -= 10;
                         }
                     }
+                    
+                    // 3 Fails in 7-day Rolling Window (-10)
+                    const weekAgo = new Date(date);
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    const failsInWindow = dates.filter(d => {
+                        const dDate = new Date(d);
+                        return dDate <= new Date(date) && dDate > weekAgo && t.log[d] === 'FAIL';
+                    });
+                    if (failsInWindow.length === 3) score -= 10;
                 }
             });
             return { score, currentStreak };
@@ -195,7 +205,6 @@
                 const status = t.log ? t.log[viewDate] : null;
                 const isActive = t.isDaily || t.date === viewDate;
                 
-                // Determine if THIS task is in Boss Mode for THIS selected date
                 const isBossMode = (currentStreak + 1) % 7 === 0 && currentStreak > 0 && !status;
 
                 const li = document.createElement('li');
