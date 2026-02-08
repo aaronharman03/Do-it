@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Ledger Edition</title>
+    <title>Reputation: Boss Edition</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; }
+        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; --boss: #6f42c1; }
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
         #auth-screen { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 50px;}
         .auth-input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
@@ -25,30 +25,32 @@
         .nav-btn { border: none; background: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
         #viewDateSelector { border: none; font-weight: bold; font-size: 16px; font-family: inherit; cursor: pointer; text-align: center; }
         
-        .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
-        .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
-        
         ul { list-style: none; padding: 0; }
-        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; }
-        li.state-done { border-left-color: var(--success); background: #fafffb; }
-        li.state-failed { border-left-color: var(--danger); background: #fff5f5; }
-        li.state-done .task-text { text-decoration: line-through; opacity: 0.6; }
+        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; transition: 0.3s; }
+        
+        /* Boss Style */
+        li.boss-mode { background: #1a1a1a; color: white; border-left-color: var(--boss); animation: shadow-pulse 2s infinite; }
+        @keyframes shadow-pulse { 0% { box-shadow: 0 0 5px rgba(111, 66, 193, 0.4); } 50% { box-shadow: 0 0 20px rgba(111, 66, 193, 0.8); } 100% { box-shadow: 0 0 5px rgba(111, 66, 193, 0.4); } }
 
-        .status-box { width: 34px; height: 34px; border-radius: 8px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; font-size: 18px; font-weight: bold; transition: 0.2s; background: white; flex-shrink: 0; }
+        li.state-done { border-left-color: var(--success); }
+        li.state-failed { border-left-color: var(--danger); }
+        li.state-done.boss-mode { border-left-color: var(--gold); }
+        li.state-done .task-text { text-decoration: line-through; opacity: 0.5; }
+
+        .status-box { width: 34px; height: 34px; border-radius: 8px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; font-size: 18px; font-weight: bold; transition: 0.2s; background: white; flex-shrink: 0; color: #333; }
         .status-box.done { background: var(--success); border-color: var(--success); color: white; }
         .status-box.failed { background: var(--danger); border-color: var(--danger); color: white; }
-        
+        .boss-mode .status-box { border-color: var(--boss); color: var(--boss); }
+        .boss-mode .status-box.done { background: var(--gold); border-color: var(--gold); color: black; }
+
         .task-text { flex: 1; font-weight: 600; font-size: 16px; }
-        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
-        .danger-badge { background: #ff4444; color: white; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; color: #333; }
+        .boss-mode .badge { background: rgba(255,255,255,0.1); color: white; }
     </style>
 </head>
 <body>
 
     <div id="auth-screen">
-        <span class="label">Cloud Vault Login</span>
         <input type="email" id="email" class="auth-input" placeholder="Email">
         <input type="password" id="password" class="auth-input" placeholder="Password">
         <button onclick="handleAuth('login')" class="auth-btn">Access Ledger</button>
@@ -56,7 +58,7 @@
 
     <div id="app-ui">
         <div class="dashboard">
-            <span class="label">Global Reputation</span>
+            <span class="label">Total Reputation</span>
             <div class="global-score" id="globalScore">0.0</div>
             <div class="bar-bg"><div id="medalProgressBar"></div></div>
         </div>
@@ -67,11 +69,11 @@
             <button class="nav-btn" onclick="changeViewDate(1)">▶</button>
         </div>
 
-        <div class="input-group">
-            <input type="text" id="taskInput" placeholder="New thought or mission..." autocomplete="off">
-            <div class="controls">
-                <label style="font-size: 13px; font-weight: 700; cursor:pointer;"><input type="checkbox" id="dailyInput"> DAILY</label>
-                <button id="addBtn" onclick="addTask()" style="margin-left: auto; background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
+        <div style="background: white; padding: 15px; border-radius: 16px; margin-bottom: 20px;">
+            <input type="text" id="taskInput" placeholder="New mission..." style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 8px; outline: none;">
+            <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+                <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
+                <button onclick="addTask()" style="margin-left: auto; background: black; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
             </div>
         </div>
 
@@ -133,7 +135,6 @@
             input.value = ''; render(); await saveToCloud();
         }
 
-        // --- CALCULATION ENGINE ---
         function calculateStats(t) {
             let score = 0;
             let currentStreak = 0;
@@ -141,15 +142,20 @@
             
             dates.forEach((date, idx) => {
                 const status = t.log[date];
+                const isBossDay = (currentStreak + 1) % 7 === 0 && currentStreak > 0;
+
                 if (status === 'DONE') {
-                    score += 1;
+                    score += isBossDay ? 5 : 1;
                     currentStreak++;
                 } else if (status === 'FAIL') {
-                    let penalty = currentStreak >= 30 ? 20 : (currentStreak >= 10 ? 5 : 1);
-                    score -= penalty;
+                    if (isBossDay) {
+                        score -= 50; // Massive Boss Failure
+                    } else {
+                        let penalty = currentStreak >= 30 ? 20 : (currentStreak >= 10 ? 5 : 1);
+                        score -= penalty;
+                    }
                     currentStreak = 0;
 
-                    // 2 Consecutive Fails Check (-10)
                     if (idx > 0) {
                         const prevDate = new Date(dates[idx-1]);
                         const currDate = new Date(date);
@@ -157,14 +163,6 @@
                             score -= 10;
                         }
                     }
-                    // 3 Fails in 7-day Rolling Window (-10)
-                    const weekAgo = new Date(date);
-                    weekAgo.setDate(weekAgo.getDate() - 7);
-                    const failsInWindow = dates.filter(d => {
-                        const dDate = new Date(d);
-                        return dDate <= new Date(date) && dDate > weekAgo && t.log[d] === 'FAIL';
-                    });
-                    if (failsInWindow.length === 3) score -= 10;
                 }
             });
             return { score, currentStreak };
@@ -196,22 +194,21 @@
                 totalRep += score;
                 const status = t.log ? t.log[viewDate] : null;
                 const isActive = t.isDaily || t.date === viewDate;
+                
+                // Determine if THIS task is in Boss Mode for THIS selected date
+                const isBossMode = (currentStreak + 1) % 7 === 0 && currentStreak > 0 && !status;
 
                 const li = document.createElement('li');
-                if (status === 'DONE') li.className = 'state-done';
-                if (status === 'FAIL') li.className = 'state-failed';
+                if (isBossMode) li.classList.add('boss-mode');
+                if (status === 'DONE') li.classList.add('state-done');
+                if (status === 'FAIL') li.classList.add('state-failed');
 
-                const icon = status === 'DONE' ? '✓' : (status === 'FAIL' ? '✕' : '');
+                const icon = status === 'DONE' ? '✓' : (status === 'FAIL' ? '✕' : (isBossMode ? '👹' : ''));
                 const sClass = status === 'DONE' ? 'done' : (status === 'FAIL' ? 'failed' : '');
-
-                // Risk Warning logic (for the UI badge)
-                const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-                const recentFails = Object.keys(t.log || {}).filter(d => new Date(d) >= weekAgo && t.log[d] === 'FAIL').length;
 
                 li.innerHTML = `
                     <div class="status-box ${sClass}" onclick="cycleStatus(${t.id})">${icon}</div>
-                    <span class="task-text">${t.text}</span>
-                    ${recentFails >= 2 && status !== 'DONE' ? '<span class="badge danger-badge">⚠️ RISK</span>' : ''}
+                    <span class="task-text">${isBossMode ? 'BOSS: ' : ''}${t.text}</span>
                     <span class="badge" style="background:#eee">PTS ${score.toFixed(1)}</span>
                     ${currentStreak > 0 ? `<span class="badge" style="background:#fff3cd">🔥 ${currentStreak}</span>` : ''}
                 `;
