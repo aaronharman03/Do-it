@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Master Ledger</title>
+    <title>Reputation: High Score Edition</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -15,8 +15,10 @@
         .auth-btn { background: #000; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
         #app-ui { display: none; }
         
-        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center; border-bottom: 5px solid #ddd; position: relative; }
-        .global-score { font-size: 3.2rem; font-weight: 900; margin: 5px 0; line-height: 1; }
+        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 5px solid #ddd; position: relative; }
+        .score-container { display: flex; justify-content: space-around; align-items: baseline; margin: 10px 0; }
+        .global-score { font-size: 3rem; font-weight: 900; line-height: 1; }
+        .high-score { font-size: 1.5rem; font-weight: 900; color: var(--gold); }
         .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; display: block; }
         .bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 8px 0; }
         #medalProgressBar { height: 100%; background: var(--gold); width: 0%; transition: width 0.6s ease; }
@@ -60,9 +62,15 @@
 
     <div id="app-ui">
         <div class="dashboard">
-            <span class="label">Total Reputation</span>
-            <div class="global-score" id="globalScore">0.0</div>
+            <div style="display: flex; justify-content: space-around; text-align: center;">
+                <div><span class="label">Reputation</span><div class="global-score" id="globalScore">0.0</div></div>
+                <div><span class="label">Best</span><div class="high-score" id="highScore">0.0</div></div>
+            </div>
             <div class="bar-bg"><div id="medalProgressBar"></div></div>
+            <div style="display: flex; justify-content: space-around; margin-top: 5px; font-size: 1.2rem;">
+                <span id="m1" style="opacity:0.2">🥉</span><span id="m2" style="opacity:0.2">🥈</span>
+                <span id="m3" style="opacity:0.2">🥇</span><span id="m4" style="opacity:0.2">👑</span>
+            </div>
         </div>
 
         <div class="calendar-nav">
@@ -72,7 +80,7 @@
         </div>
 
         <div class="input-group">
-            <input type="text" id="taskInput" placeholder="New thought or mission..." autocomplete="off">
+            <input type="text" id="taskInput" placeholder="New mission..." autocomplete="off">
             <div class="controls">
                 <input type="date" id="dateInput">
                 <label style="font-size: 13px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
@@ -80,7 +88,7 @@
             </div>
         </div>
 
-        <span class="label">☀️ Active for Selected Day</span>
+        <span class="label">☀️ Active Today</span>
         <ul id="taskList"></ul>
         <span class="label">🗓️ Holding Pen</span>
         <ul id="holdingPen"></ul>
@@ -99,7 +107,7 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let tasks = [], userId = null;
+        let tasks = [], userId = null, highScore = 0;
         const getToday = () => new Date().toISOString().split('T')[0];
         document.getElementById('viewDateSelector').value = getToday();
 
@@ -114,12 +122,16 @@
 
         async function syncWithCloud() {
             const doc = await db.collection('users').doc(userId).get();
-            if (doc.exists) { tasks = doc.data().tasks || []; }
+            if (doc.exists) { 
+                const data = doc.data();
+                tasks = data.tasks || []; 
+                highScore = data.highScore || 0;
+            }
             render();
         }
 
         async function saveToCloud() {
-            await db.collection('users').doc(userId).set({ tasks }, { merge: true });
+            await db.collection('users').doc(userId).set({ tasks, highScore }, { merge: true });
         }
 
         function changeViewDate(d) {
@@ -143,15 +155,11 @@
         function calculateStats(t) {
             let score = 0, currentStreak = 0;
             const dates = Object.keys(t.log || {}).sort();
-            
             dates.forEach((date, idx) => {
                 const status = t.log[date];
                 const isBossDay = (currentStreak + 1) % 7 === 0 && currentStreak > 0;
-
-                if (status === 'DONE') {
-                    score += isBossDay ? 5 : 1;
-                    currentStreak++;
-                } else if (status === 'FAIL') {
+                if (status === 'DONE') { score += isBossDay ? 5 : 1; currentStreak++; }
+                else if (status === 'FAIL') {
                     if (isBossDay) { score -= 50; } else {
                         let penalty = currentStreak >= 30 ? 20 : (currentStreak >= 10 ? 5 : 1);
                         score -= penalty;
@@ -221,18 +229,23 @@
                     list.appendChild(li);
                 } else {
                     const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span class="task-text">${t.text} <small style="color:#aaa">(${t.date})</small></span>
-                        <button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>
-                    `;
+                    li.innerHTML = `<span class="task-text">${t.text} <small>(${t.date})</small></span><button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>`;
                     pen.appendChild(li);
                 }
             });
 
+            if (totalRep > highScore) highScore = totalRep;
+
             document.getElementById('globalScore').innerText = totalRep.toFixed(1);
-            const milestones = [{val: 50}, {val: 150}, {val: 300}, {val: 500}];
+            document.getElementById('highScore').innerText = highScore.toFixed(1);
+            
+            const milestones = [{id:'m1', val:50}, {id:'m2', val:150}, {id:'m3', val:300}, {id:'m4', val:500}];
             let next = milestones.find(m => totalRep < m.val) || {val: totalRep}, prev = 0;
-            milestones.forEach(m => { if (totalRep >= m.val) prev = m.val; });
+            milestones.forEach(m => { 
+                const el = document.getElementById(m.id);
+                if (totalRep >= m.val) { el.style.opacity = "1"; prev = m.val; }
+                else { el.style.opacity = "0.2"; }
+            });
             document.getElementById('medalProgressBar').style.width = Math.max(0, ((totalRep - prev) / (next.val - prev)) * 100) + "%";
         }
     </script>
