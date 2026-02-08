@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Ledger Edition</title>
+    <title>Reputation: Manual Ledger</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -16,87 +16,66 @@
         #app-ui { display: none; }
         
         .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center; border-bottom: 5px solid #ddd; position: relative; }
-        .logout-btn { position: absolute; top: 10px; right: 10px; font-size: 0.6rem; cursor: pointer; background: #eee; border: none; padding: 5px; border-radius: 4px; }
         .global-score { font-size: 3.2rem; font-weight: 900; margin: 5px 0; line-height: 1; }
         .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; display: block; }
         
-        .bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 8px 0; position: relative; }
+        .bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 8px 0; }
         #medalProgressBar { height: 100%; background: var(--gold); width: 0%; transition: width 0.6s ease; }
-        .milestones { display: flex; justify-content: space-around; margin: 15px 0; background: #fafafa; padding: 12px; border-radius: 16px; }
-        .medal { font-size: 1.6rem; filter: grayscale(1); opacity: 0.2; transition: 0.5s; }
-        .medal.unlocked { filter: grayscale(0); opacity: 1; transform: scale(1.1); }
 
+        /* Ledger Navigation */
         .calendar-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px; background: white; padding: 10px; border-radius: 12px; }
-        .nav-arrow { border: none; background: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
-        #viewDateSelector { border: none; font-weight: bold; font-size: 16px; font-family: inherit; cursor: pointer; text-align: center; }
+        #viewDateSelector { border: none; font-weight: bold; font-size: 16px; font-family: inherit; cursor: pointer; }
         
-        .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
-        .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
-        input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
-        button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; }
-        
+        /* Task List */
         ul { list-style: none; padding: 0; }
         li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; }
-        li.done { opacity: 0.5; }
-        li.done .task-text { text-decoration: line-through; }
-        li.pos-task { border-left-color: var(--success); }
-        li.neg-task { border-left-color: var(--danger); }
+        li.state-done { border-left-color: var(--success); background: #fafffb; }
+        li.state-failed { border-left-color: var(--danger); background: #fff5f5; opacity: 0.8; }
+        li.state-done .task-text { text-decoration: line-through; opacity: 0.6; }
+
+        /* Tri-State Control */
+        .status-box { width: 34px; height: 34px; border-radius: 8px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; font-size: 18px; font-weight: bold; transition: 0.2s; background: white; }
+        .status-box.done { background: var(--success); border-color: var(--success); color: white; }
+        .status-box.failed { background: var(--danger); border-color: var(--danger); color: white; }
         
-        input[type="checkbox"] { width: 24px; height: 24px; margin-right: 12px; cursor: pointer; }
-        .min-effort-btn { background: #fff3cd; color: #856404; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; flex-shrink: 0; }
         .task-text { flex: 1; font-weight: 600; font-size: 16px; }
-        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
-        
-        .promo-btn { background: #eef; color: var(--primary); border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; margin-right: 10px; }
-        .menu-dots { cursor: pointer; padding: 5px; font-size: 1.4rem; color: #ccc; }
-        .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 120px; }
-        .menu-content.show { display: block; }
-        .menu-content button { display: block; width: 100%; padding: 12px; text-align: left; border: none; background: none; font-size: 14px; cursor: pointer; font-weight: 600; }
+        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; }
     </style>
 </head>
 <body>
 
     <div id="auth-screen">
-        <span class="label">Cloud Vault Access</span>
         <input type="email" id="email" class="auth-input" placeholder="Email">
         <input type="password" id="password" class="auth-input" placeholder="Password">
-        <button onclick="handleAuth('login')" class="auth-btn" style="margin-bottom: 10px;">Login</button>
-        <button onclick="handleAuth('signup')" class="auth-btn" style="background: #666;">Create Account</button>
+        <button onclick="handleAuth('login')" class="auth-btn">Login</button>
     </div>
 
     <div id="app-ui">
         <div class="dashboard">
-            <button class="logout-btn" onclick="logout()">LOGOUT</button>
-            <span class="label">Total Reputation</span>
+            <span class="label">Reputation Ledger</span>
             <div class="global-score" id="globalScore">0.0</div>
-            <span class="label" id="nextMedalLabel" style="font-size: 0.55rem; margin-top: 10px;">Next: Bronze (10)</span>
-            <div class="bar-bg" style="height: 6px;"><div id="medalProgressBar"></div></div>
-            <div class="milestones">
-                <div class="medal" id="m1">🥉</div><div class="medal" id="m2">🥈</div>
-                <div class="medal" id="m3">🥇</div><div class="medal" id="m4">👑</div>
-            </div>
+            <div class="bar-bg"><div id="medalProgressBar"></div></div>
         </div>
 
         <div class="calendar-nav">
-            <button class="nav-arrow" onclick="changeViewDate(-1)">◀</button>
+            <button onclick="changeViewDate(-1)">◀</button>
             <input type="date" id="viewDateSelector" onchange="render()">
-            <button class="nav-arrow" onclick="changeViewDate(1)">▶</button>
+            <button onclick="changeViewDate(1)">▶</button>
         </div>
 
-        <div class="input-group">
-            <input type="text" id="taskInput" placeholder="New Mission..." autocomplete="off">
-            <div class="controls">
-                <input type="date" id="dateInput">
-                <label style="font-size: 13px; font-weight: 700; cursor:pointer;"><input type="checkbox" id="dailyInput"> DAILY</label>
-                <button id="addBtn" onclick="addTask()">ADD</button>
+        <div style="background: white; padding: 15px; border-radius: 16px; margin-bottom: 20px;">
+            <input type="text" id="taskInput" placeholder="New mission..." style="width: 100%; padding: 10px; border: 1px solid #eee; border-radius: 8px;">
+            <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+                <label style="font-size: 12px;"><input type="checkbox" id="dailyInput"> DAILY</label>
+                <button onclick="addTask()" style="margin-left: auto; background: black; color: white; border: none; padding: 8px 15px; border-radius: 8px;">ADD</button>
             </div>
         </div>
 
-        <span class="label">☀️ Active for Selected Day</span>
+        <span class="label">Missions</span>
         <ul id="taskList"></ul>
-        <span class="label">🗓️ Holding Pen</span>
-        <ul id="upcomingList"></ul>
+
+        <span class="label">Holding Pen</span>
+        <ul id="holdingPen"></ul>
     </div>
 
     <script>
@@ -118,151 +97,114 @@
 
         auth.onAuthStateChanged(async (user) => {
             if (user) { userId = user.uid; document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-ui').style.display = 'block'; await syncWithCloud(); }
-            else { userId = null; document.getElementById('auth-screen').style.display = 'block'; document.getElementById('app-ui').style.display = 'none'; }
         });
 
-        async function handleAuth(type) {
+        async function handleAuth(t) {
             const e = document.getElementById('email').value, p = document.getElementById('password').value;
-            try { type === 'signup' ? await auth.createUserWithEmailAndPassword(e, p) : await auth.signInWithEmailAndPassword(e, p); } catch (err) { alert(err.message); }
+            await auth.signInWithEmailAndPassword(e, p);
         }
 
-        function logout() { auth.signOut(); }
-
         async function syncWithCloud() {
-            if (!userId) return;
             const doc = await db.collection('users').doc(userId).get();
             if (doc.exists) { tasks = doc.data().tasks || []; }
             render();
         }
 
-        async function saveToCloud() {
-            if (!userId) return;
-            await db.collection('users').doc(userId).set({ tasks }, { merge: true });
-        }
-
-        function changeViewDate(days) {
-            const current = new Date(document.getElementById('viewDateSelector').value);
-            current.setDate(current.getDate() + days);
-            document.getElementById('viewDateSelector').value = current.toISOString().split('T')[0];
+        function changeViewDate(d) {
+            const curr = new Date(document.getElementById('viewDateSelector').value);
+            curr.setDate(curr.getDate() + d);
+            document.getElementById('viewDateSelector').value = curr.toISOString().split('T')[0];
             render();
         }
 
         async function addTask() {
-            const input = document.getElementById('taskInput'), dInput = document.getElementById('dateInput'), daily = document.getElementById('dailyInput');
-            if (!input.value.trim()) return;
+            const input = document.getElementById('taskInput'), daily = document.getElementById('dailyInput');
             tasks.push({
-                id: Date.now(), text: input.value.trim(), date: dInput.value || getToday(),
-                isDaily: daily.checked, individualScore: 0, streak: 0,
-                completedDates: [], penalizedDates: [], missedHistory: []
+                id: Date.now(), text: input.value, date: document.getElementById('viewDateSelector').value,
+                isDaily: daily.checked, 
+                log: {} // Log will store { "2024-02-01": "DONE", "2024-02-02": "FAIL" }
             });
-            input.value = ''; dInput.value = ''; daily.checked = false;
-            render(); await saveToCloud();
+            input.value = ''; render(); await db.collection('users').doc(userId).set({ tasks }, { merge: true });
         }
 
-        async function toggleTask(id, type = 'FULL') {
-            const viewDate = document.getElementById('viewDateSelector').value;
+        // --- THE LEDGER ENGINE ---
+        // This calculates the score and streak based on the entire history every time
+        function calculateStats(t) {
+            let score = 0;
+            let currentStreak = 0;
+            const dates = Object.keys(t.log || {}).sort();
+            
+            dates.forEach(date => {
+                const status = t.log[date];
+                if (status === 'DONE') {
+                    score += 1;
+                    currentStreak++;
+                } else if (status === 'FAIL') {
+                    // Apply your harsh penalty rules
+                    let penalty = currentStreak >= 30 ? 20 : (currentStreak >= 10 ? 5 : 1);
+                    score -= penalty;
+                    currentStreak = 0;
+
+                    // Check Major Consistency Penalty (-10)
+                    const idx = dates.indexOf(date);
+                    if (idx > 0) {
+                        const prevDate = dates[idx-1];
+                        const diff = Math.ceil(Math.abs(new Date(date) - new Date(prevDate)) / 86400000);
+                        if (diff === 1 && t.log[prevDate] === 'FAIL') score -= 10;
+                    }
+                }
+            });
+            return { score, currentStreak };
+        }
+
+        async function cycleStatus(id) {
+            const date = document.getElementById('viewDateSelector').value;
             tasks = tasks.map(t => {
                 if (t.id === id) {
-                    if (!t.completedDates) t.completedDates = [];
-                    const idx = t.completedDates.indexOf(viewDate);
-                    if (idx > -1) { 
-                        t.completedDates.splice(idx, 1);
-                        t.individualScore -= (type === 'FULL' ? 1 : 0.1);
-                        if(t.isDaily) t.streak = Math.max(0, t.streak - 1);
-                    } else { 
-                        t.completedDates.push(viewDate);
-                        t.individualScore += (type === 'FULL' ? 1 : 0.1);
-                        if(t.isDaily) t.streak++;
-                        t.penalizedDates = (t.penalizedDates || []).filter(d => d !== viewDate);
-                        t.missedHistory = (t.missedHistory || []).filter(d => d !== viewDate);
-                    }
+                    if (!t.log) t.log = {};
+                    const current = t.log[date];
+                    if (!current) t.log[date] = 'DONE';
+                    else if (current === 'DONE') t.log[date] = 'FAIL';
+                    else delete t.log[date];
                 }
                 return t;
             });
-            render(); await saveToCloud();
+            render();
+            await db.collection('users').doc(userId).set({ tasks }, { merge: true });
         }
-
-        async function promoteTask(id) {
-            tasks = tasks.map(t => t.id === id ? {...t, date: getToday()} : t);
-            render(); await saveToCloud();
-        }
-
-        async function deleteTask(id) {
-            if(confirm("Delete mission?")) { tasks = tasks.filter(t => t.id !== id); render(); await saveToCloud(); }
-        }
-
-        function toggleMenu(id) {
-            event.stopPropagation();
-            const el = document.getElementById(`menu-${id}`);
-            document.querySelectorAll('.menu-content').forEach(m => m !== el && m.classList.remove('show'));
-            el.classList.toggle('show');
-        }
-        window.onclick = () => document.querySelectorAll('.menu-content').forEach(m => m.classList.remove('show'));
 
         function render() {
             const viewDate = document.getElementById('viewDateSelector').value;
-            const today = getToday();
-            
-            tasks = tasks.map(t => {
-                const isMissed = (t.isDaily || t.date === today) && !t.completedDates?.includes(today) && t.date < today;
-                if (isMissed && !t.penalizedDates?.includes(today)) {
-                    if(!t.penalizedDates) t.penalizedDates = [];
-                    if(!t.missedHistory) t.missedHistory = [];
-                    let penalty = t.streak >= 30 ? 20 : (t.streak >= 10 ? 5 : 1);
-                    t.individualScore -= penalty;
-                    t.missedHistory.push(today);
-                    if (t.missedHistory.length >= 2) {
-                        const d = Math.ceil(Math.abs(new Date(t.missedHistory[t.missedHistory.length-1]) - new Date(t.missedHistory[t.missedHistory.length-2])) / 86400000);
-                        if (d === 1) t.individualScore -= 10;
-                    }
-                    t.streak = 0; t.penalizedDates.push(today);
-                }
-                return t;
-            });
-
-            const total = parseFloat(tasks.reduce((acc, t) => acc + (t.individualScore || 0), 0).toFixed(1));
-            document.getElementById('globalScore').innerText = total.toFixed(1);
-
-            const milestones = [{id:'m1', val:50}, {id:'m2', val:150}, {id:'m3', val:300}, {id:'m4', val:500}];
-            let next = milestones.find(m => total < m.val) || {val: total}, prev = 0;
-            milestones.forEach(m => { 
-                const el = document.getElementById(m.id);
-                if (total >= m.val) { el.style.filter = "grayscale(0)"; el.style.opacity = "1"; prev = m.val; }
-                else { el.style.filter = "grayscale(1)"; el.style.opacity = "0.2"; }
-            });
-            document.getElementById('medalProgressBar').style.width = Math.max(0, ((total - prev) / (next.val - prev)) * 100) + "%";
-
             const list = document.getElementById('taskList'); list.innerHTML = '';
-            const pen = document.getElementById('upcomingList'); pen.innerHTML = '';
+            const pen = document.getElementById('holdingPen'); pen.innerHTML = '';
+            let totalRep = 0;
 
-            tasks.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(t => {
-                const isTodayActive = t.isDaily || t.date === viewDate;
-                if (isTodayActive) {
-                    const isDone = t.completedDates?.includes(viewDate);
-                    const li = document.createElement('li');
-                    if (isDone) li.classList.add('done');
-                    li.classList.add(t.individualScore >= 0 ? 'pos-task' : 'neg-task');
-                    li.innerHTML = `
-                        <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleTask(${t.id}, 'FULL')">
-                        ${!isDone ? `<div class="min-effort-btn" onclick="toggleTask(${t.id}, 'MINIMAL')">⚡</div>` : ''}
-                        <span class="task-text">${t.text}</span>
-                        <span class="badge" style="background:#eee">PTS ${t.individualScore.toFixed(1)}</span>
-                        ${t.streak > 0 ? `<span class="badge" style="background:#fff3cd">🔥 ${t.streak}</span>` : ''}
-                        <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
-                        <div class="menu-content" id="menu-${t.id}"><button onclick="deleteTask(${t.id})" style="color:var(--danger)">Delete</button></div>
-                    `;
-                    list.appendChild(li);
-                } else {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span class="task-text">${t.text} <small style="color:#aaa">(${t.date})</small></span>
-                        <button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>
-                        <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
-                        <div class="menu-content" id="menu-${t.id}"><button onclick="deleteTask(${t.id})" style="color:var(--danger)">Delete</button></div>
-                    `;
-                    pen.appendChild(li);
-                }
+            tasks.forEach(t => {
+                const { score, currentStreak } = calculateStats(t);
+                totalRep += score;
+                
+                const status = t.log ? t.log[viewDate] : null;
+                const isActive = t.isDaily || t.date === viewDate;
+
+                const li = document.createElement('li');
+                if (status === 'DONE') li.className = 'state-done';
+                if (status === 'FAIL') li.className = 'state-failed';
+
+                const statusIcon = status === 'DONE' ? '✓' : (status === 'FAIL' ? '✕' : '');
+                const statusClass = status === 'DONE' ? 'done' : (status === 'FAIL' ? 'failed' : '');
+
+                li.innerHTML = `
+                    <div class="status-box ${statusClass}" onclick="cycleStatus(${t.id})">${statusIcon}</div>
+                    <span class="task-text">${t.text}</span>
+                    <span class="badge" style="background:#eee">PTS ${score.toFixed(1)}</span>
+                    ${currentStreak > 0 ? `<span class="badge" style="background:#fff3cd">🔥 ${currentStreak}</span>` : ''}
+                `;
+
+                if (isActive) list.appendChild(li);
+                else pen.appendChild(li);
             });
+
+            document.getElementById('globalScore').innerText = totalRep.toFixed(1);
         }
     </script>
 </body>
