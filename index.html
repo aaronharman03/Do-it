@@ -3,337 +3,354 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Social Progress PWA</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
+    <title>Reputation: Milestone Edition</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <link rel="manifest" href="manifest.json">
+
     <style>
-        :root { --bg: #000; --card: #111; --accent: #00ff88; --text: #fff; --error: #ff4444; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; padding-top: 100px; }
+        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; }
+        body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
+        #auth-screen { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 50px;}
+        .auth-input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .auth-btn { background: #000; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        #app-ui { display: none; }
+        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center; border-bottom: 5px solid #ddd; position: relative; }
+        .logout-btn { position: absolute; top: 10px; right: 10px; font-size: 0.6rem; cursor: pointer; background: #eee; border: none; padding: 5px; border-radius: 4px; }
+        .global-score { font-size: 3.2rem; font-weight: 900; margin: 5px 0; line-height: 1; }
+        .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; display: block; }
+        .bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+        #progressBar { height: 100%; background: var(--success); width: 0%; transition: width 0.6s ease; }
+        #medalProgressBar { height: 100%; background: var(--gold); width: 0%; transition: width 0.6s ease; }
+        .milestones { display: flex; justify-content: space-around; margin: 15px 0; background: #fafafa; padding: 12px; border-radius: 16px; }
+        .medal { font-size: 1.6rem; filter: grayscale(1); opacity: 0.2; transition: 0.5s; }
+        .medal.unlocked { filter: grayscale(0); opacity: 1; transform: scale(1.1); }
+        .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
+        .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+        input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
+        button#addBtn { background: #000; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-weight: 800; cursor: pointer; transition: 0.3s; }
+        ul { list-style: none; padding: 0; }
+        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: 0.3s; position: relative; }
+        #todayList li { border-left: 6px solid #ccc; }
+        #todayList li.pos-task { border-left-color: var(--success); background: #fafffb; }
+        #todayList li.neg-task { border-left-color: var(--danger); background: #fff5f5; }
+        li.done { opacity: 0.5; }
+        li.done .task-text { text-decoration: line-through; }
+        input[type="checkbox"] { width: 24px; height: 24px; margin-right: 12px; cursor: pointer; }
+        .min-effort-btn { background: #fff3cd; color: #856404; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; flex-shrink: 0; }
+        .task-text { flex: 1; font-weight: 600; font-size: 16px; }
+        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; }
+        .streak-badge { background: #fff3cd; color: #856404; }
+        .promo-btn { background: #eef; color: var(--primary); border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; margin-right: 10px; }
         
-        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 5000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .auth-card { background: var(--card); padding: 30px; border-radius: 20px; width: 100%; max-width: 350px; border: 1px solid #222; text-align: center; }
-        
-        #header { position: fixed; top: 0; left: 0; right: 0; background: rgba(0,0,0,0.95); padding: 15px 20px; z-index: 1000; border-bottom: 1px solid #222; backdrop-filter: blur(10px); }
-        .bar-bg { background: #222; border-radius: 10px; height: 6px; width: 100%; margin-top: 8px; overflow: hidden; }
-        .bar-fill { background: var(--accent); height: 100%; width: 0%; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        #list { display: flex; flex-direction: column; gap: 12px; }
-        
-        .card { background: var(--card); border-radius: 14px; border: 1px solid #222; position: relative; z-index: 1; transition: z-index 0s; }
-        .card.active-card { z-index: 2000; }
-        
-        .card-header { padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; position: relative; }
-        .task-name { font-weight: bold; font-size: 1rem; margin-bottom: 6px; color: #eee; }
-        .pct-val { color: #555; font-size: 0.85rem; font-weight: bold; margin-left: 10px; }
-        
-        .menu-container { position: relative; z-index: 100; }
-        .menu-dots { background: none; border: none; color: #444; font-size: 1.5rem; padding: 5px 10px; cursor: pointer; outline: none; }
-        .menu-dropdown { 
-            display: none; position: absolute; right: 0; top: 40px; 
-            background: #1a1a1a; border: 1px solid #333; border-radius: 10px; 
-            min-width: 140px; box-shadow: 0 10px 30px rgba(0,0,0,1); z-index: 5000;
-        }
-        .menu-dropdown.show { display: block; }
-        .menu-item { padding: 14px 16px; font-size: 0.95rem; color: #eee; border-bottom: 1px solid #222; cursor: pointer; }
-        .menu-item:last-child { border-bottom: none; }
-        .menu-item:active { background: #222; }
-        .menu-item.delete { color: var(--error); }
-
-        .expansion { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; background: #080808; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
-        .card.open .expansion { max-height: 2000px; padding-bottom: 20px; }
-        
-        .day-container { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
-        .day-row { display: flex; align-items: center; gap: 12px; }
-        .day-label { font-size: 0.6rem; color: #444; width: 45px; font-weight: 800; text-transform: uppercase; }
-        .reps { display: flex; gap: 8px; flex-wrap: wrap; }
-        
-        .dot { width: 24px; height: 24px; border-radius: 6px; background: #1a1a1a; border: 1px solid #333; }
-        .dot.active { background: var(--accent); border-color: var(--accent); }
-
-        .add-btn { position: fixed; bottom: 25px; right: 25px; width: 56px; height: 56px; border-radius: 28px; background: var(--accent); border: none; font-size: 28px; z-index: 100; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,255,136,0.3); }
-        .logout-btn { background: none; border: 1px solid #333; color: #666; padding: 8px 12px; border-radius: 8px; font-size: 0.7rem; cursor: pointer; }
-        
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; z-index: 4000; padding: 20px; }
-        .modal-content { background: #1a1a1a; padding: 25px; border-radius: 20px; width: 100%; max-width: 380px; }
-        input { background: #000; border: 1px solid #333; color: #fff; padding: 14px; width: 100%; margin: 10px 0; border-radius: 10px; box-sizing: border-box; outline: none; }
-        button.primary { background: var(--accent); border: none; padding: 16px; width: 100%; border-radius: 12px; font-weight: bold; cursor: pointer; color: #000; }
+        /* Menu Styles */
+        .menu-container { position: relative; }
+        .menu-dots { cursor: pointer; padding: 5px; font-size: 1.4rem; color: #ccc; line-height: 1; }
+        .menu-content { display: none; position: absolute; right: 0; top: 100%; background: white; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 100; min-width: 120px; overflow: hidden; }
+        .menu-content.show { display: block; }
+        .menu-content button { display: block; width: 100%; padding: 12px; text-align: left; border: none; background: none; font-size: 14px; cursor: pointer; font-weight: 600; }
+        .menu-content button:hover { background: #f8f9fa; }
     </style>
 </head>
 <body>
 
-<div id="auth-screen">
-    <div class="auth-card">
-        <h2 style="color:var(--accent)">Social Progress</h2>
-        <input type="email" id="email" placeholder="Email">
-        <input type="password" id="password" placeholder="Password">
-        <button class="primary" onclick="handleAuth()">LOGIN / SIGNUP</button>
-        <p id="auth-error" style="color:var(--error); font-size:0.8rem; margin-top:10px;"></p>
+    <div id="auth-screen">
+        <span class="label">Cloud Vault Access</span>
+        <input type="email" id="email" class="auth-input" placeholder="Email">
+        <input type="password" id="password" class="auth-input" placeholder="Password">
+        <button onclick="handleAuth('login')" class="auth-btn" style="margin-bottom: 10px;">Login</button>
+        <button onclick="handleAuth('signup')" class="auth-btn" style="background: #666;">Create Account</button>
     </div>
-</div>
 
-<div id="header">
-    <div style="display:flex; justify-content:space-between; align-items: center;">
-        <div>
-            <span style="font-size:0.65rem; color:#666; font-weight: 900; letter-spacing: 1.5px;">TOTAL MASTERY</span>
-            <div id="ov-text" style="color:var(--accent); font-weight:bold; font-size: 1.4rem;">0.0%</div>
-        </div>
-        <button class="logout-btn" onclick="logout()">LOGOUT</button>
-    </div>
-    <div class="bar-bg"><div id="ov-bar" class="bar-fill"></div></div>
-</div>
-
-<div id="list"></div>
-
-<button class="add-btn" onclick="openModal()">+</button>
-
-<div id="modal" class="modal">
-    <div class="modal-content">
-        <h3 id="modal-title" style="color:var(--accent); margin-top:0;">New Mission</h3>
-        <input type="text" id="taskName" placeholder="Mission Name">
-        <input type="number" id="goalDays" placeholder="Goal Days">
-        <input type="number" id="goalReps" placeholder="Reps Per Day">
-        <button id="modal-btn" class="primary" onclick="saveTask()">START TRACKING</button>
-        <button onclick="closeModal()" style="background:none; border:none; color:#666; width:100%; padding:15px; cursor:pointer;">Cancel</button>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyBn4MCxlcJFxNJV91JyisbrJtUMkSHRjXI",
-        authDomain: "socialmax-929eb.firebaseapp.com",
-        projectId: "socialmax-929eb",
-        storageBucket: "socialmax-929eb.firebasestorage.app",
-        messagingSenderId: "60765069620",
-        appId: "1:60765069620:web:df9b8df0ee13ce5d018561",
-        measurementId: "G-CF3XL1XZWF"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    let currentUser = null;
-    let tasks = [];
-    let editIdx = null;
-
-    window.handleAuth = async () => {
-        const email = document.getElementById('email').value;
-        const pass = document.getElementById('password').value;
-        try {
-            await signInWithEmailAndPassword(auth, email, pass);
-        } catch (e) {
-            try {
-                await createUserWithEmailAndPassword(auth, email, pass);
-            } catch (err) {
-                document.getElementById('auth-error').innerText = err.message;
-            }
-        }
-    };
-
-    window.logout = () => signOut(auth);
-
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            currentUser = user;
-            document.getElementById('auth-screen').style.display = 'none';
-            onSnapshot(doc(db, "users", user.uid), (doc) => {
-                tasks = doc.data()?.tasks || [];
-                render();
-            });
-        } else {
-            document.getElementById('auth-screen').style.display = 'flex';
-            document.getElementById('list').innerHTML = '';
-        }
-    });
-
-    async function syncData() {
-        if (!currentUser) return;
-        await setDoc(doc(db, "users", currentUser.uid), { tasks });
-    }
-
-    window.openModal = (idx = null) => {
-        editIdx = idx;
-        const modal = document.getElementById('modal');
-        const title = document.getElementById('modal-title');
-        const btn = document.getElementById('modal-btn');
-        
-        if(idx !== null) {
-            title.innerText = "Edit Mission";
-            btn.innerText = "SAVE CHANGES";
-            document.getElementById('taskName').value = tasks[idx].name;
-            document.getElementById('goalDays').value = tasks[idx].days;
-            document.getElementById('goalReps').value = tasks[idx].repsPerDay;
-        } else {
-            title.innerText = "New Mission";
-            btn.innerText = "START TRACKING";
-            document.getElementById('taskName').value = '';
-            document.getElementById('goalDays').value = '';
-            document.getElementById('goalReps').value = '';
-        }
-        modal.style.display = 'flex';
-    };
-
-    window.closeModal = () => document.getElementById('modal').style.display = 'none';
-
-    window.saveTask = async () => {
-        const name = document.getElementById('taskName').value;
-        const days = parseInt(document.getElementById('goalDays').value);
-        const reps = parseInt(document.getElementById('goalReps').value);
-        
-        if (name && days && reps) {
-            if(editIdx !== null) {
-                tasks[editIdx] = { ...tasks[editIdx], name, days, repsPerDay: reps };
-            } else {
-                tasks.push({ name, days, repsPerDay: reps, completed: [], open: false });
-            }
-            await syncData();
-            closeModal();
-        }
-    };
-
-    window.toggleMenu = (e, i) => {
-        e.stopPropagation();
-        const menu = document.getElementById(`menu-${i}`);
-        const card = menu.closest('.card');
-        const isShown = menu.classList.contains('show');
-        
-        document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
-        document.querySelectorAll('.card').forEach(c => c.classList.remove('active-card'));
-        
-        if(!isShown) {
-            menu.classList.add('show');
-            card.classList.add('active-card');
-        }
-    };
-
-    window.onclick = () => {
-        document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
-        document.querySelectorAll('.card').forEach(c => c.classList.remove('active-card'));
-    };
-
-    window.toggleCard = (i) => {
-        tasks[i].open = !tasks[i].open;
-        render(); 
-    };
-
-    window.toggleDot = async (e, taskIdx, dotIdx) => {
-        e.stopPropagation();
-        const t = tasks[taskIdx];
-        const index = t.completed.indexOf(dotIdx);
-        if (index > -1) t.completed.splice(index, 1);
-        else t.completed.push(dotIdx);
-        await syncData();
-    };
-
-    window.deleteTask = async (e, i) => {
-        e.stopPropagation();
-        if(confirm("Delete this mission?")) {
-            tasks.splice(i, 1);
-            await syncData();
-        }
-    };
-
-    function render() {
-        const list = document.getElementById('list');
-        list.innerHTML = '';
-        
-        let combinedPercentageSum = 0; 
-
-        tasks.forEach((t, tIdx) => {
-            const taskTotalDots = t.days * t.repsPerDay;
-            const taskDoneDots = t.completed.length;
+    <div id="app-ui">
+        <div class="dashboard">
+            <button class="logout-btn" onclick="logout()">LOGOUT</button>
+            <span class="label">Total Reputation</span>
+            <div class="global-score" id="globalScore">0.0</div>
             
-            let taskPct = taskTotalDots > 0 ? (taskDoneDots / taskTotalDots) * 100 : 0;
+            <span class="label" id="nextMedalLabel" style="font-size: 0.55rem; margin-top: 10px;">Next: Bronze (10)</span>
+            <div class="bar-bg" style="height: 6px;"><div id="medalProgressBar"></div></div>
 
-            // --- PENALTY LOGIC ---
-            let penaltyCount = 0;
-            let dailyStatus = []; // 0: Future, 1: Success, -1: Miss
-            const maxDotReached = t.completed.length > 0 ? Math.max(...t.completed) : -1;
+            <div class="milestones">
+                <div class="medal" id="m1">🥉</div>
+                <div class="medal" id="m2">🥈</div>
+                <div class="medal" id="m3">🥇</div>
+                <div class="medal" id="m4">👑</div>
+            </div>
 
-            for (let d = 0; d < t.days; d++) {
-                let repsDoneThisDay = 0;
-                for (let r = 0; r < t.repsPerDay; r++) {
-                    if (t.completed.includes((d * t.repsPerDay) + r)) repsDoneThisDay++;
-                }
-                
-                if (repsDoneThisDay > 0) {
-                    dailyStatus.push(1); 
-                } else if (d * t.repsPerDay <= maxDotReached) {
-                    dailyStatus.push(-1); // Missed because we have progress beyond this day
-                } else {
-                    dailyStatus.push(0); // Future day
-                }
+            <div class="bar-bg"><div id="progressBar"></div></div>
+            <span class="label" id="progressText" style="font-size: 0.55rem;">0% TODAY</span>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="taskInput" placeholder="New thought or mission..." autocomplete="off">
+            <div class="controls">
+                <input type="date" id="dateInput">
+                <label style="font-size: 13px; font-weight: 700; cursor:pointer;"><input type="checkbox" id="dailyInput"> DAILY</label>
+                <button id="addBtn" onclick="addTask()">ADD</button>
+            </div>
+        </div>
+
+        <span class="label">☀️ Active Today</span>
+        <ul id="todayList"></ul>
+        <span class="label">🗓️ Holding Pen</span>
+        <ul id="upcomingList"></ul>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBVKXdqta9WYvdz8g3j0ZKd_HYM-R1EJdo",
+            authDomain: "do-it-685b9.firebaseapp.com",
+            projectId: "do-it-685b9",
+            storageBucket: "do-it-685b9.firebasestorage.app",
+            messagingSenderId: "344979931866",
+            appId: "1:344979931866:web:0b2e5cd04e883f33cfdbe3",
+            measurementId: "G-QQV2ZRQSES"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        db.enablePersistence().catch(err => console.error("Persistence failed", err.code));
+
+        let tasks = [];
+        let userId = null;
+        let editingTaskId = null;
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                userId = user.uid;
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('app-ui').style.display = 'block';
+                await syncWithCloud();
+            } else {
+                userId = null;
+                tasks = [];
+                document.getElementById('auth-screen').style.display = 'block';
+                document.getElementById('app-ui').style.display = 'none';
             }
-
-            // Check 2 consecutive misses
-            for (let i = 0; i < dailyStatus.length - 1; i++) {
-                if (dailyStatus[i] === -1 && dailyStatus[i+1] === -1) {
-                    penaltyCount++; break;
-                }
-            }
-
-            // Check 3 misses in 7-day rolling window
-            for (let i = 0; i <= dailyStatus.length - 7; i++) {
-                const window = dailyStatus.slice(i, i + 7);
-                if (window.filter(s => s === -1).length >= 3) {
-                    penaltyCount++; break;
-                }
-            }
-
-            const totalDeduction = penaltyCount * 10;
-            taskPct = Math.max(0, taskPct - totalDeduction);
-            combinedPercentageSum += taskPct;
-
-            let gridHtml = '';
-            dailyStatus.forEach((status, d) => {
-                const isMiss = status === -1;
-                gridHtml += `
-                    <div class="day-row" style="${isMiss ? 'opacity: 0.9;' : ''}">
-                        <div class="day-label" style="${isMiss ? 'color:var(--error);' : ''}">
-                            D${d+1} ${isMiss ? '<span style="font-size:0.5rem;display:block;margin-top:2px;">MISS</span>' : ''}
-                        </div>
-                        <div class="reps">`;
-                for (let r = 0; r < t.repsPerDay; r++) {
-                    const dotIdx = (d * t.repsPerDay) + r;
-                    const active = t.completed.includes(dotIdx) ? 'active' : '';
-                    gridHtml += `<div class="dot ${active}" onclick="toggleDot(event, ${tIdx}, ${dotIdx})"></div>`;
-                }
-                gridHtml += `</div></div>`;
-            });
-
-            list.innerHTML += `
-                <div class="card ${t.open ? 'open' : ''}">
-                    <div class="card-header" onclick="toggleCard(${tIdx})">
-                        <div style="flex-grow:1; margin-right:15px;">
-                            <div class="task-name">
-                                ${t.name} 
-                                ${penaltyCount > 0 ? `<span style="color:var(--error); font-size:0.7rem; margin-left:8px; font-weight:bold;">⚠️ -${totalDeduction}%</span>` : ''}
-                            </div>
-                            <div class="bar-bg"><div class="bar-fill" style="width:${taskPct}%"></div></div>
-                        </div>
-                        <div class="pct-val">${taskPct.toFixed(1)}%</div>
-                        <div class="menu-container">
-                            <button class="menu-dots" onclick="toggleMenu(event, ${tIdx})">⋮</button>
-                            <div id="menu-${tIdx}" class="menu-dropdown">
-                                <div class="menu-item" onclick="openModal(${tIdx})">Edit</div>
-                                <div class="menu-item delete" onclick="deleteTask(event, ${tIdx})">Delete</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="expansion">
-                        <div class="day-container">${gridHtml}</div>
-                    </div>
-                </div>`;
         });
 
-        const overall = tasks.length > 0 ? (combinedPercentageSum / tasks.length).toFixed(1) : "0.0";
-        document.getElementById('ov-text').innerText = overall + '%';
-        document.getElementById('ov-bar').style.width = overall + '%';
-    }
-</script>
+        async function handleAuth(type) {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('password').value;
+            try {
+                if (type === 'signup') await auth.createUserWithEmailAndPassword(e, p);
+                else await auth.signInWithEmailAndPassword(e, p);
+            } catch (err) { alert(err.message); }
+        }
+
+        function logout() { auth.signOut(); }
+
+        async function syncWithCloud() {
+            if (!userId) return;
+            try {
+                const doc = await db.collection('users').doc(userId).get();
+                if (doc.exists) { tasks = doc.data().tasks || []; }
+                render(); 
+            } catch (err) { console.error("Sync Error:", err); }
+        }
+
+        async function saveToCloud() {
+            if (!userId) return;
+            try {
+                await db.collection('users').doc(userId).set({ tasks }, { merge: true });
+            } catch (err) { console.error("Save Error:", err); }
+        }
+
+        const getToday = () => new Date().toISOString().split('T')[0];
+
+        function toggleMenu(id) {
+            event.stopPropagation();
+            document.querySelectorAll('.menu-content').forEach(m => {
+                if (m.id !== `menu-${id}`) m.classList.remove('show');
+            });
+            document.getElementById(`menu-${id}`).classList.toggle('show');
+        }
+
+        window.onclick = () => document.querySelectorAll('.menu-content').forEach(m => m.classList.remove('show'));
+
+        function editTask(id) {
+            const t = tasks.find(task => task.id === id);
+            editingTaskId = id;
+            document.getElementById('taskInput').value = t.text;
+            document.getElementById('dateInput').value = t.date;
+            document.getElementById('dailyInput').checked = t.isDaily;
+            const btn = document.getElementById('addBtn');
+            btn.innerText = "SAVE";
+            btn.style.background = "var(--primary)";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function addTask() {
+            const input = document.getElementById('taskInput');
+            const dateInput = document.getElementById('dateInput');
+            const dailyInput = document.getElementById('dailyInput');
+            const addBtn = document.getElementById('addBtn');
+            if (!input.value.trim()) return;
+
+            if (editingTaskId) {
+                tasks = tasks.map(t => t.id === editingTaskId ? {
+                    ...t,
+                    text: input.value.trim(),
+                    date: dateInput.value || getToday(),
+                    isDaily: dailyInput.checked
+                } : t);
+                editingTaskId = null;
+                addBtn.innerText = "ADD";
+                addBtn.style.background = "#000";
+            } else {
+                tasks.push({
+                    id: Date.now(),
+                    text: input.value.trim(),
+                    date: dateInput.value || getToday(),
+                    isDaily: dailyInput.checked,
+                    done: false,
+                    individualScore: 0,
+                    streak: 0,
+                    lastCompletedDate: null,
+                    penalizedDates: [] 
+                });
+            }
+
+            input.value = ''; dateInput.value = ''; dailyInput.checked = false;
+            render(); 
+            await saveToCloud();
+        }
+
+        async function complete(id, type) {
+            tasks = tasks.map(t => {
+                if (t.id === id && !t.done) {
+                    t.done = true; 
+                    t.lastCompletedDate = getToday();
+                    if (type === 'FULL') { 
+                        t.individualScore += 1; 
+                        if(t.isDaily) t.streak += 1; 
+                    } else { 
+                        t.individualScore += 0.1; 
+                    }
+                }
+                return t;
+            });
+            render();
+            await saveToCloud();
+        }
+
+        async function promoteTask(id) {
+            tasks = tasks.map(t => t.id === id ? {...t, date: getToday()} : t);
+            render();
+            await saveToCloud();
+        }
+
+        async function deleteTask(id) {
+            if(confirm("Erase task?")) {
+                tasks = tasks.filter(t => t.id !== id);
+                render();
+                await saveToCloud();
+            }
+        }
+
+        function render() {
+            const today = getToday();
+            let stateChanged = false;
+            
+            // Sort by date (Soonest first)
+            tasks.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            tasks = tasks.map(t => {
+                const isTodayActive = (t.isDaily || t.date === today);
+                if (t.isDaily && t.lastCompletedDate !== today && t.done === true) {
+                    t.done = false;
+                    stateChanged = true;
+                }
+                let deadline = t.isDaily ? (t.lastCompletedDate || t.date) : t.date;
+                if (deadline && deadline < today && isTodayActive && !t.done) {
+                    if (!t.penalizedDates.includes(today)) {
+                        t.individualScore -= 1; 
+                        t.streak = 0; 
+                        t.penalizedDates.push(today);
+                        stateChanged = true;
+                    }
+                }
+                return t;
+            });
+
+            if (stateChanged) saveToCloud();
+
+            const totalScore = parseFloat(tasks.reduce((acc, t) => acc + t.individualScore, 0).toFixed(1));
+            document.getElementById('globalScore').innerText = totalScore.toFixed(1);
+            document.getElementById('globalScore').style.color = totalScore >= 0 ? "var(--success)" : "var(--danger)";
+
+            const milestones = [
+                { id: 'm1', val: 50, name: 'Bronze' },
+                { id: 'm2', val: 150, name: 'Silver' },
+                { id: 'm3', val: 300, name: 'Gold' },
+                { id: 'm4', val: 500, name: 'Legend' }
+            ];
+            
+            let nextM = milestones.find(m => totalScore < m.val) || { name: 'Max Level', val: totalScore };
+            let prevVal = 0;
+            milestones.forEach((m) => {
+                if (totalScore >= m.val) { 
+                    document.getElementById(m.id).classList.add('unlocked'); 
+                    prevVal = m.val; 
+                } else { 
+                    document.getElementById(m.id).classList.remove('unlocked'); 
+                }
+            });
+
+            let medalPercent = (nextM.val - prevVal) > 0 ? Math.max(0, ((totalScore - prevVal) / (nextM.val - prevVal)) * 100) : 100;
+            document.getElementById('medalProgressBar').style.width = medalPercent + "%";
+            document.getElementById('nextMedalLabel').innerText = `Next: ${nextM.name} (${nextM.val} Pts)`;
+
+            const tList = document.getElementById('todayList');
+            const uList = document.getElementById('upcomingList');
+            tList.innerHTML = ''; uList.innerHTML = '';
+
+            const activeToday = tasks.filter(t => t.isDaily || t.date === today);
+            const doneToday = activeToday.filter(t => t.done).length;
+            const percent = activeToday.length ? Math.round((doneToday / activeToday.length) * 100) : 0;
+            document.getElementById('progressBar').style.width = percent + "%";
+            document.getElementById('progressText').innerText = percent + "% TODAY";
+
+            tasks.forEach(t => {
+                const li = document.createElement('li');
+                const isTodayActive = (t.isDaily || t.date === today);
+                
+                const menuHtml = `
+                    <div class="menu-container">
+                        <div class="menu-dots" onclick="toggleMenu(${t.id})">⋮</div>
+                        <div class="menu-content" id="menu-${t.id}">
+                            <button onclick="editTask(${t.id})">✏️ Edit</button>
+                            <button onclick="deleteTask(${t.id})" style="color:var(--danger)">🗑️ Delete</button>
+                        </div>
+                    </div>`;
+
+                if (isTodayActive) {
+                    if (t.done) li.classList.add('done');
+                    if (t.individualScore > 0) li.classList.add('pos-task');
+                    else if (t.individualScore < 0) li.classList.add('neg-task');
+                    li.innerHTML = `
+                        <input type="checkbox" ${t.done ? 'checked disabled' : ''} onchange="complete(${t.id}, 'FULL')">
+                        ${!t.done ? `<div class="min-effort-btn" onclick="complete(${t.id}, 'MINIMAL')">⚡</div>` : ''}
+                        <span class="task-text">${t.text}</span>
+                        <span class="badge">PTS ${t.individualScore.toFixed(1)}</span>
+                        ${t.streak > 0 ? `<span class="badge streak-badge">🔥 ${t.streak}</span>` : ''}
+                        ${menuHtml}`;
+                    tList.appendChild(li);
+                } else {
+                    li.innerHTML = `
+                        <span class="task-text">${t.text} <small style="color:#aaa">(${t.date})</small></span>
+                        <button class="promo-btn" onclick="promoteTask(${t.id})">☀️ Today</button>
+                        ${menuHtml}`;
+                    uList.appendChild(li);
+                }
+            });
+        }
+        document.getElementById('taskInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') addTask(); });
+    </script>
 </body>
 </html>
