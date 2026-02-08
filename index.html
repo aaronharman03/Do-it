@@ -36,8 +36,6 @@
         li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; transition: 0.3s; }
         
         li.boss-mode { background: #1a1a1a; color: white; border-left-color: var(--boss); animation: shadow-pulse 2s infinite; }
-        @keyframes shadow-pulse { 0% { box-shadow: 0 0 5px rgba(111, 66, 193, 0.4); } 50% { box-shadow: 0 0 20px rgba(111, 66, 193, 0.8); } 100% { box-shadow: 0 0 5px rgba(111, 66, 193, 0.4); } }
-
         li.state-done { border-left-color: var(--success); }
         li.state-failed { border-left-color: var(--danger); }
         li.state-done.boss-mode { border-left-color: var(--gold); }
@@ -64,9 +62,12 @@
         <div class="dashboard">
             <div style="display: flex; justify-content: space-around; text-align: center;">
                 <div><span class="label">Reputation</span><div class="global-score" id="globalScore">0.0</div></div>
-                <div><span class="label">Best</span><div class="high-score" id="highScore">0.0</div></div>
+                <div><span class="label">High Score</span><div class="high-score" id="highScore">0.0</div></div>
             </div>
+            
             <div class="bar-bg"><div id="medalProgressBar"></div></div>
+            <span class="label" id="nextMedalLabel" style="font-size: 0.55rem; text-align: center;">Next: 50.0 Pts</span>
+
             <div style="display: flex; justify-content: space-around; margin-top: 5px; font-size: 1.2rem;">
                 <span id="m1" style="opacity:0.2">🥉</span><span id="m2" style="opacity:0.2">🥈</span>
                 <span id="m3" style="opacity:0.2">🥇</span><span id="m4" style="opacity:0.2">👑</span>
@@ -88,7 +89,6 @@
             </div>
         </div>
 
-        <span class="label">☀️ Active Today</span>
         <ul id="taskList"></ul>
         <span class="label">🗓️ Holding Pen</span>
         <ul id="holdingPen"></ul>
@@ -239,14 +239,25 @@
             document.getElementById('globalScore').innerText = totalRep.toFixed(1);
             document.getElementById('highScore').innerText = highScore.toFixed(1);
             
-            const milestones = [{id:'m1', val:50}, {id:'m2', val:150}, {id:'m3', val:300}, {id:'m4', val:500}];
-            let next = milestones.find(m => totalRep < m.val) || {val: totalRep}, prev = 0;
+            // MEDAL LOGIC
+            const milestones = [
+                {id:'m1', val:50, name: 'Bronze'}, 
+                {id:'m2', val:150, name: 'Silver'}, 
+                {id:'m3', val:300, name: 'Gold'}, 
+                {id:'m4', val:500, name: 'Legend'}
+            ];
+            
+            let next = milestones.find(m => totalRep < m.val) || {val: totalRep, name: 'Max'};
+            let prev = 0;
+            
             milestones.forEach(m => { 
                 const el = document.getElementById(m.id);
                 if (totalRep >= m.val) { el.style.opacity = "1"; prev = m.val; }
                 else { el.style.opacity = "0.2"; }
             });
+
             document.getElementById('medalProgressBar').style.width = Math.max(0, ((totalRep - prev) / (next.val - prev)) * 100) + "%";
+            document.getElementById('nextMedalLabel').innerText = `Next: ${next.name} (${next.val.toFixed(1)} Pts)`;
         }
     </script>
 </body>
