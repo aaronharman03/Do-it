@@ -32,7 +32,7 @@
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
         .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
         input[type="date"], input[type="number"] { border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
-        input[type="number"] { width: 50px; }
+        input[type="number"] { width: 60px; }
         
         ul { list-style: none; padding: 0; }
         li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; transition: 0.3s; }
@@ -91,7 +91,7 @@
             <input type="text" id="taskInput" placeholder="New mission...">
             <div class="controls">
                 <input type="date" id="dateInput">
-                <input type="number" id="orderInput" placeholder="Pos" title="Sort Order">
+                <input type="number" id="orderInput" placeholder="Pos" title="Task Order Number">
                 <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
                 <button onclick="addTask()" id="addBtn" style="margin-left: auto; background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
             </div>
@@ -158,9 +158,15 @@
         function calculateStats(t) {
             let s=0, strk=0; const dts=Object.keys(t.log||{}).sort();
             dts.forEach((d,idx)=>{
-                const st=t.log[d], boss=(strk+1)%7===0 && strk>0;
-                if(st==='DONE'){ s+=boss?5:1; strk++; }
+                const st=t.log[d];
+                if(st==='DONE'){
+                    strk++;
+                    s += 1; // Standard point
+                    if (strk % 7 === 0) s += 10; // 7-day milestone
+                    else if (strk === 3) s += 3; // 3-day milestone
+                }
                 else if(st==='FAIL'){
+                    const boss=(strk+1)%7===0 && strk>0;
                     if(boss){ s-=50; } else { s-=(strk>=30?20:(strk>=10?5:1)); }
                     strk=0;
                     if(idx>0 && Math.ceil(Math.abs(new Date(d)-new Date(dts[idx-1]))/86400000)===1 && t.log[dts[idx-1]]==='FAIL') s-=10;
@@ -190,24 +196,23 @@
             const vD=document.getElementById('viewDateSelector').value, tL=document.getElementById('taskList'), hP=document.getElementById('holdingPen');
             tL.innerHTML=''; hP.innerHTML=''; let totalRep = 0;
 
-            // SORTING LOGIC: Sort by the 'order' property (lowest number first)
-            const sortedTasks = [...tasks].sort((a, b) => (a.order || 999) - (b.order || 999));
+            // Sort by Order property, then by ID
+            const sortedTasks = [...tasks].sort((a, b) => (a.order || 999) - (b.order || 999) || a.id - b.id);
 
             sortedTasks.forEach(t=>{
                 const {s, strk}=calculateStats(t); totalRep+=s;
                 const st=t.log?t.log[vD]:null, act=t.isDaily||t.date===vD, boss=(strk+1)%7===0 && strk>0 && !st;
                 const li=document.createElement('li');
-                
-                const orderDisplay = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
+                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
 
                 if(act){
                     if(boss)li.classList.add('boss-mode'); if(st==='DONE')li.classList.add('state-done'); if(st==='FAIL')li.classList.add('state-failed');
                     li.innerHTML=`<div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">${st==='DONE'?'✓':(st==='FAIL'?'✕':(boss?'👹':''))}</div>
-                    <span class="task-text" onclick="editTask(${t.id})">${orderDisplay}${boss?'BOSS: ':''}${t.text}</span>
+                    <span class="task-text" onclick="editTask(${t.id})">${orderDisp}${boss?'BOSS: ':''}${t.text}</span>
                     <span class="badge">PTS ${s.toFixed(1)}</span>${strk>0?`<span class="badge" style="background:#fff3cd">🔥 ${strk}</span>`:''}`;
                     tL.appendChild(li);
                 } else {
-                    li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${orderDisplay}${t.text} <small>(${t.date})</small></span>
+                    li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${orderDisp}${t.text} <small>(${t.date})</small></span>
                     <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${getToday()}'}:x);render();save();">☀️</button>`;
                     hP.appendChild(li);
                 }
