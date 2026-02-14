@@ -30,8 +30,9 @@
         
         .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
         input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
-        .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
-        input[type="date"] { flex: 1; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
+        .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+        input[type="date"], input[type="number"] { border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
+        input[type="number"] { width: 50px; }
         
         ul { list-style: none; padding: 0; }
         li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; transition: 0.3s; }
@@ -50,6 +51,7 @@
 
         .task-text { flex: 1; font-weight: 600; font-size: 16px; cursor: pointer; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; color: #333; }
+        .order-tag { font-size: 0.6rem; color: #aaa; margin-right: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -89,6 +91,7 @@
             <input type="text" id="taskInput" placeholder="New mission...">
             <div class="controls">
                 <input type="date" id="dateInput">
+                <input type="number" id="orderInput" placeholder="Pos" title="Sort Order">
                 <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
                 <button onclick="addTask()" id="addBtn" style="margin-left: auto; background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
             </div>
@@ -126,7 +129,6 @@
                 tasks = d.tasks || []; 
                 highScore = d.highScore || 0; 
                 ghostScore = d.ghostScore || 0;
-                // If this is the first sync of a new day, set the ghost marker to yesterday's score
                 if(d.lastLoginDate !== getToday()) {
                     ghostScore = parseFloat(tasks.reduce((acc, t) => acc + calculateStats(t).s, 0).toFixed(1));
                     await db.collection('users').doc(userId).set({ ghostScore, lastLoginDate: getToday() }, { merge: true });
@@ -140,15 +142,17 @@
         function changeViewDate(d){ const c=new Date(document.getElementById('viewDateSelector').value); c.setDate(c.getDate()+d); document.getElementById('viewDateSelector').value=c.toISOString().split('T')[0]; render(); }
 
         function addTask(){
-            const i=document.getElementById('taskInput'), dIn=document.getElementById('dateInput'), dy=document.getElementById('dailyInput');
+            const i=document.getElementById('taskInput'), dIn=document.getElementById('dateInput'), dy=document.getElementById('dailyInput'), ord=document.getElementById('orderInput');
             if(!i.value) return;
+            const orderVal = parseInt(ord.value) || 999;
+
             if(editingId){
-                tasks=tasks.map(t=>t.id===editingId ? {...t, text:i.value, isDaily:dy.checked} : t);
+                tasks=tasks.map(t=>t.id===editingId ? {...t, text:i.value, isDaily:dy.checked, order:orderVal} : t);
                 editingId=null; document.getElementById('addBtn').innerText="ADD";
             } else {
-                tasks.push({ id:Date.now(), text:i.value, date:dIn.value||getToday(), isDaily:dy.checked, log:{} });
+                tasks.push({ id:Date.now(), text:i.value, date:dIn.value||getToday(), isDaily:dy.checked, order:orderVal, log:{} });
             }
-            i.value=''; dIn.value=''; dy.checked=false; render(); save();
+            i.value=''; dIn.value=''; dy.checked=false; ord.value=''; render(); save();
         }
 
         function calculateStats(t) {
@@ -177,6 +181,7 @@
             const t=tasks.find(x=>x.id===id); editingId=id; 
             document.getElementById('taskInput').value=t.text; 
             document.getElementById('dailyInput').checked=t.isDaily;
+            document.getElementById('orderInput').value=t.order || '';
             document.getElementById('addBtn').innerText="SAVE"; 
             window.scrollTo(0,0);
         }
@@ -185,18 +190,24 @@
             const vD=document.getElementById('viewDateSelector').value, tL=document.getElementById('taskList'), hP=document.getElementById('holdingPen');
             tL.innerHTML=''; hP.innerHTML=''; let totalRep = 0;
 
-            tasks.forEach(t=>{
+            // SORTING LOGIC: Sort by the 'order' property (lowest number first)
+            const sortedTasks = [...tasks].sort((a, b) => (a.order || 999) - (b.order || 999));
+
+            sortedTasks.forEach(t=>{
                 const {s, strk}=calculateStats(t); totalRep+=s;
                 const st=t.log?t.log[vD]:null, act=t.isDaily||t.date===vD, boss=(strk+1)%7===0 && strk>0 && !st;
                 const li=document.createElement('li');
+                
+                const orderDisplay = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
+
                 if(act){
                     if(boss)li.classList.add('boss-mode'); if(st==='DONE')li.classList.add('state-done'); if(st==='FAIL')li.classList.add('state-failed');
                     li.innerHTML=`<div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">${st==='DONE'?'✓':(st==='FAIL'?'✕':(boss?'👹':''))}</div>
-                    <span class="task-text" onclick="editTask(${t.id})">${boss?'BOSS: ':''}${t.text}</span>
+                    <span class="task-text" onclick="editTask(${t.id})">${orderDisplay}${boss?'BOSS: ':''}${t.text}</span>
                     <span class="badge">PTS ${s.toFixed(1)}</span>${strk>0?`<span class="badge" style="background:#fff3cd">🔥 ${strk}</span>`:''}`;
                     tL.appendChild(li);
                 } else {
-                    li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${t.text} <small>(${t.date})</small></span>
+                    li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${orderDisplay}${t.text} <small>(${t.date})</small></span>
                     <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${getToday()}'}:x);render();save();">☀️</button>`;
                     hP.appendChild(li);
                 }
@@ -210,11 +221,9 @@
             let n=m.find(x=>totalRep<x.v)||{v:totalRep,n:'Max'}, p=0;
             m.forEach(x=>{ const el=document.getElementById(x.id); if(totalRep>=x.v){ el.style.opacity="1"; p=x.v; }else el.style.opacity="0.2"; });
             
-            // Progress Bar & Ghost
             const barWidth = Math.max(0,((totalRep-p)/(n.v-p))*100);
             document.getElementById('medalProgressBar').style.width = barWidth + "%";
             
-            // Ghost Marker Logic
             let gP = 0; m.forEach(x => { if(ghostScore >= x.v) gP = x.v; });
             let gN = m.find(x => ghostScore < x.v) || {v: ghostScore};
             const ghostPos = Math.max(0, ((ghostScore-gP)/(gN.v-gP))*100);
