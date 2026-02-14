@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -215,29 +215,53 @@
             const vD=document.getElementById('viewDateSelector').value, tL=document.getElementById('taskList'), hP=document.getElementById('holdingPen');
             tL.innerHTML=''; hP.innerHTML=''; let totalRep = 0;
 
-            const sortedTasks = [...tasks].sort((a, b) => (a.order || 999) - (b.order || 999) || a.id - b.id);
+            // 1. First calculate total reputation from ALL tasks (including deleted/future)
+            tasks.forEach(t => totalRep += calculateStats(t).s);
 
-            sortedTasks.forEach(t=>{
-                const {s, strk}=calculateStats(t); totalRep+=s;
-                if(t.deleted) return; // HIDDEN BUT POINTS COUNTED
+            // 2. Separate non-deleted tasks for display
+            const activeDisplayTasks = [];
+            const holdingDisplayTasks = [];
 
-                const st=t.log?t.log[vD]:null, act=t.isDaily||t.date===vD, boss=(strk+1)%7===0 && strk>0 && !st;
-                const li=document.createElement('li');
-                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
-
-                if(act){
-                    if(boss)li.classList.add('boss-mode'); if(st==='DONE')li.classList.add('state-done'); if(st==='FAIL')li.classList.add('state-failed');
-                    li.innerHTML=`<div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">${st==='DONE'?'✓':(st==='FAIL'?'✕':(boss?'👹':''))}</div>
-                    <span class="task-text" onclick="editTask(${t.id})">${orderDisp}${boss?'BOSS: ':''}${t.text}</span>
-                    <span class="badge">PTS ${s.toFixed(1)}</span>${strk>0?`<span class="badge" style="background:#fff3cd">🔥 ${strk}</span>`:''}`;
-                    tL.appendChild(li);
-                } else {
-                    li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${orderDisp}${t.text} <small>(${t.date})</small></span>
-                    <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${getToday()}'}:x);render();save();">☀️</button>`;
-                    hP.appendChild(li);
-                }
+            tasks.forEach(t => {
+                if (t.deleted) return;
+                const isCurrent = t.isDaily || t.date === vD;
+                if (isCurrent) activeDisplayTasks.push(t);
+                else holdingDisplayTasks.push(t);
             });
 
+            // 3. Sort Active tasks by POS, then ID
+            activeDisplayTasks.sort((a, b) => (a.order || 999) - (b.order || 999) || a.id - b.id);
+
+            // 4. Sort Holding Pen by DATE, then POS
+            holdingDisplayTasks.sort((a, b) => new Date(a.date) - new Date(b.date) || (a.order || 999) - (b.order || 999));
+
+            // 5. Render Lists
+            activeDisplayTasks.forEach(t => {
+                const {s, strk} = calculateStats(t);
+                const st = t.log ? t.log[vD] : null;
+                const boss = (strk+1)%7 === 0 && strk > 0 && !st;
+                const li = document.createElement('li');
+                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
+                
+                if(boss) li.classList.add('boss-mode'); 
+                if(st==='DONE') li.classList.add('state-done'); 
+                if(st==='FAIL') li.classList.add('state-failed');
+
+                li.innerHTML=`<div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">${st==='DONE'?'✓':(st==='FAIL'?'✕':(boss?'👹':''))}</div>
+                <span class="task-text" onclick="editTask(${t.id})">${orderDisp}${boss?'BOSS: ':''}${t.text}</span>
+                <span class="badge">PTS ${s.toFixed(1)}</span>${strk>0?`<span class="badge" style="background:#fff3cd">🔥 ${strk}</span>`:''}`;
+                tL.appendChild(li);
+            });
+
+            holdingDisplayTasks.forEach(t => {
+                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
+                const li = document.createElement('li');
+                li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${orderDisp}${t.text} <small>(${t.date})</small></span>
+                <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${getToday()}'}:x);render();save();">☀️</button>`;
+                hP.appendChild(li);
+            });
+
+            // 6. Update Dashboard
             if(totalRep > highScore) highScore = totalRep;
             document.getElementById('globalScore').innerText = totalRep.toFixed(1);
             document.getElementById('highScore').innerText = highScore.toFixed(1);
