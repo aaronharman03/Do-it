@@ -52,6 +52,8 @@
         .task-text { flex: 1; font-weight: 600; font-size: 16px; cursor: pointer; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; color: #333; }
         .order-tag { font-size: 0.6rem; color: #aaa; margin-right: 8px; font-weight: bold; }
+        
+        #deleteBtn { background: var(--danger); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; display: none; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -93,7 +95,10 @@
                 <input type="date" id="dateInput">
                 <input type="number" id="orderInput" placeholder="Pos" title="Task Order Number">
                 <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
-                <button onclick="addTask()" id="addBtn" style="margin-left: auto; background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
+                <div style="margin-left: auto; display: flex; gap: 5px;">
+                    <button onclick="deleteTask()" id="deleteBtn">🗑️</button>
+                    <button onclick="addTask()" id="addBtn" style="background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
+                </div>
             </div>
         </div>
 
@@ -148,11 +153,25 @@
 
             if(editingId){
                 tasks=tasks.map(t=>t.id===editingId ? {...t, text:i.value, isDaily:dy.checked, order:orderVal} : t);
-                editingId=null; document.getElementById('addBtn').innerText="ADD";
+                editingId=null; 
+                document.getElementById('addBtn').innerText="ADD";
+                document.getElementById('deleteBtn').style.display = "none";
             } else {
                 tasks.push({ id:Date.now(), text:i.value, date:dIn.value||getToday(), isDaily:dy.checked, order:orderVal, log:{} });
             }
             i.value=''; dIn.value=''; dy.checked=false; ord.value=''; render(); save();
+        }
+
+        function deleteTask() {
+            if(!editingId) return;
+            if(confirm("Retire this mission? Points earned will remain in your Ledger history.")){
+                tasks = tasks.map(t => t.id === editingId ? {...t, deleted: true} : t);
+                editingId = null;
+                document.getElementById('taskInput').value = '';
+                document.getElementById('addBtn').innerText = "ADD";
+                document.getElementById('deleteBtn').style.display = "none";
+                render(); save();
+            }
         }
 
         function calculateStats(t) {
@@ -160,10 +179,9 @@
             dts.forEach((d,idx)=>{
                 const st=t.log[d];
                 if(st==='DONE'){
-                    strk++;
-                    s += 1; // Standard point
-                    if (strk % 7 === 0) s += 10; // 7-day milestone
-                    else if (strk === 3) s += 3; // 3-day milestone
+                    strk++; s += 1;
+                    if (strk % 7 === 0) s += 10;
+                    else if (strk === 3) s += 3;
                 }
                 else if(st==='FAIL'){
                     const boss=(strk+1)%7===0 && strk>0;
@@ -189,6 +207,7 @@
             document.getElementById('dailyInput').checked=t.isDaily;
             document.getElementById('orderInput').value=t.order || '';
             document.getElementById('addBtn').innerText="SAVE"; 
+            document.getElementById('deleteBtn').style.display = "block";
             window.scrollTo(0,0);
         }
 
@@ -196,11 +215,12 @@
             const vD=document.getElementById('viewDateSelector').value, tL=document.getElementById('taskList'), hP=document.getElementById('holdingPen');
             tL.innerHTML=''; hP.innerHTML=''; let totalRep = 0;
 
-            // Sort by Order property, then by ID
             const sortedTasks = [...tasks].sort((a, b) => (a.order || 999) - (b.order || 999) || a.id - b.id);
 
             sortedTasks.forEach(t=>{
                 const {s, strk}=calculateStats(t); totalRep+=s;
+                if(t.deleted) return; // HIDDEN BUT POINTS COUNTED
+
                 const st=t.log?t.log[vD]:null, act=t.isDaily||t.date===vD, boss=(strk+1)%7===0 && strk>0 && !st;
                 const li=document.createElement('li');
                 const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
