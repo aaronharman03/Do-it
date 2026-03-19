@@ -8,7 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; --boss: #6f42c1; }
+        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; --boss: #6f42c1; --mastery: #e8f5e9; }
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
         #auth-screen { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 50px;}
         .auth-input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
@@ -16,7 +16,8 @@
         #app-ui { display: none; }
         
         .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 5px solid #ddd; position: relative; }
-        .global-score { font-size: 3rem; font-weight: 900; line-height: 1; }
+        .global-score { font-size: 3.5rem; font-weight: 900; line-height: 1; letter-spacing: -2px; }
+        .redemption-status { font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-top: 5px; text-transform: uppercase; }
         .high-score { font-size: 1.2rem; font-weight: 900; color: var(--gold); }
         .low-score { font-size: 1.2rem; font-weight: 900; color: var(--danger); }
         .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; display: block; }
@@ -39,6 +40,7 @@
         li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; transition: 0.3s; }
         
         li.boss-mode { background: #1a1a1a; color: white; border-left-color: var(--boss); animation: shadow-pulse 2s infinite; }
+        li.mastery-mode { background: var(--mastery); border-left-color: var(--success); }
         @keyframes shadow-pulse { 0% { box-shadow: 0 0 5px rgba(111, 66, 193, 0.2); } 50% { box-shadow: 0 0 15px rgba(111, 66, 193, 0.6); } 100% { box-shadow: 0 0 5px rgba(111, 66, 193, 0.2); } }
 
         li.state-done { border-left-color: var(--success); }
@@ -68,7 +70,11 @@
     <div id="app-ui">
         <div class="dashboard">
             <div style="display: flex; justify-content: space-around; text-align: center; gap: 10px;">
-                <div style="flex: 1;"><span class="label">Reputation</span><div class="global-score" id="globalScore">0.0</div></div>
+                <div style="flex: 1.5;">
+                    <span class="label">Reputation</span>
+                    <div class="global-score" id="globalScore">0.0</div>
+                    <div id="redemptionMsg" class="redemption-status"></div>
+                </div>
                 <div style="flex: 1;">
                     <span class="label">High</span><div class="high-score" id="highScore">0.0</div>
                     <span class="label" style="margin-top:5px;">Low</span><div class="low-score" id="lowScore">0.0</div>
@@ -179,25 +185,42 @@
             }
         }
 
+        // --- CORE LOGIC: LINEAR GROWTH & DECAY ---
         function calculateStats(t) {
-            let s=0, strk=0; const dts=Object.keys(t.log||{}).sort();
+            let s=0, strk=0, failStrk=0; 
+            const dts=Object.keys(t.log||{}).sort();
+            
             dts.forEach((d,idx)=>{
                 const st=t.log[d];
                 if(st==='DONE'){
+                    failStrk = 0; // Reset death spiral
                     strk++; s += 1;
-                    if (strk % 7 === 0) s += 10;
-                    else if (strk === 3) s += 3;
+                    
+                    if (strk > 0 && strk % 7 === 0) {
+                        s += (Math.floor(strk / 7) * 10); // Linear Bonus (+10, +20...)
+                    } else if (strk === 3) s += 3;
                 }
                 else if(st==='FAIL'){
-                    const boss=(strk+1)%7===0 && strk>0;
-                    if(boss){ s-=50; } else { s-=(strk>=30?20:(strk>=10?5:1)); }
-                    strk=0;
+                    strk = 0; // Reset win streak
+                    failStrk++;
+                    
+                    const spiralWeek = Math.floor(failStrk / 7);
+                    if(failStrk % 7 === 0) {
+                        s -= 50; // Boss Penalty
+                        s -= (spiralWeek * 10); // Linear Decay (-10, -20...)
+                    } else {
+                        s -= (failStrk >= 30 ? 20 : (failStrk >= 10 ? 5 : 1));
+                    }
+
+                    // Consecutive Day Penalty
                     if(idx>0 && Math.ceil(Math.abs(new Date(d)-new Date(dts[idx-1]))/86400000)===1 && t.log[dts[idx-1]]==='FAIL') s-=10;
+                    
+                    // Weekly Frequency Penalty
                     const wAgo=new Date(d); wAgo.setDate(wAgo.getDate()-7);
                     if(dts.filter(dt=>new Date(dt)<=new Date(d) && new Date(dt)>wAgo && t.log[dt]==='FAIL').length===3) s-=10;
                 }
             });
-            return { s, strk };
+            return { s, strk, failStrk };
         }
 
         function cycleStatus(id){
@@ -233,34 +256,46 @@
             });
 
             activeDisplayTasks.sort((a, b) => (a.order || 999) - (b.order || 999) || a.id - b.id);
-            holdingDisplayTasks.sort((a, b) => new Date(a.date) - new Date(b.date) || (a.order || 999) - (b.order || 999));
 
             activeDisplayTasks.forEach(t => {
-                const {s, strk} = calculateStats(t);
+                const {s, strk, failStrk} = calculateStats(t);
                 const st = t.log ? t.log[vD] : null;
+                const mastery = strk >= 66;
                 const boss = (strk+1)%7 === 0 && strk > 0 && !st;
+                const spiral = (failStrk+1)%7 === 0 && !st;
+                
                 const li = document.createElement('li');
                 const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
                 
                 if(boss) li.classList.add('boss-mode'); 
+                if(mastery) li.classList.add('mastery-mode');
                 if(st==='DONE') li.classList.add('state-done'); 
                 if(st==='FAIL') li.classList.add('state-failed');
 
-                li.innerHTML=`<div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">${st==='DONE'?'✓':(st==='FAIL'?'✕':(boss?'👹':''))}</div>
+                let nextBadge = '';
+                if(boss) nextBadge = `<span class="badge" style="background:var(--boss); color:white;">+${Math.floor((strk+1)/7)*10} POTENTIAL</span>`;
+                if(spiral) nextBadge = `<span class="badge" style="background:var(--danger); color:white;">⚠️ SPIRAL: -${(Math.floor((failStrk+1)/7)*10)+50}</span>`;
+
+                li.innerHTML=`<div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">
+                    ${st==='DONE'?'✓':(st==='FAIL'?'✕':(boss?'👹':(spiral?'💀':'')))}
+                </div>
                 <span class="task-text" onclick="editTask(${t.id})">${orderDisp}${boss?'BOSS: ':''}${t.text}</span>
-                <span class="badge">PTS ${s.toFixed(1)}</span>${strk>0?`<span class="badge" style="background:#fff3cd">🔥 ${strk}</span>`:''}`;
+                <span class="badge">PTS ${s.toFixed(1)}</span>
+                ${strk>0?`<span class="badge" style="background:#fff3cd">🔥 ${strk}</span>`:''}
+                ${failStrk>0?`<span class="badge" style="background:#f8d7da; color:#721c24">💀 ${failStrk}</span>`:''}
+                ${mastery ? `<span class="badge" style="background:var(--success); color:white;">MASTERED</span>` : ''}
+                ${nextBadge}`;
                 tL.appendChild(li);
             });
 
-            holdingDisplayTasks.forEach(t => {
-                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
+            holdingDisplayTasks.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(t => {
                 const li = document.createElement('li');
-                li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${orderDisp}${t.text} <small>(${t.date})</small></span>
+                li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${t.text} <small>(${t.date})</small></span>
                 <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${getToday()}'}:x);render();save();">☀️</button>`;
                 hP.appendChild(li);
             });
 
-            // Update All-Time Scores
+            // Update Scoreboard
             if(totalRep > highScore) highScore = totalRep;
             if(totalRep < lowScore || (lowScore === 0 && totalRep !== 0)) lowScore = totalRep;
             
@@ -268,21 +303,24 @@
             document.getElementById('highScore').innerText = highScore.toFixed(1);
             document.getElementById('lowScore').innerText = lowScore.toFixed(1);
 
+            const redMsg = document.getElementById('redemptionMsg');
+            if (totalRep < 0) {
+                const percent = Math.min(100, Math.max(0, ((1778 + totalRep) / 1778) * 100));
+                redMsg.innerText = `REDEMPTION: ${percent.toFixed(1)}% TO SURFACE`;
+            } else {
+                redMsg.innerText = "SURFACE REACHED - ASCENDING";
+            }
+
             const m=[{id:'m1',v:50,n:'Bronze'},{id:'m2',v:150,n:'Silver'},{id:'m3',v:300,n:'Gold'},{id:'m4',v:500,n:'Legend'}];
             let n=m.find(x=>totalRep<x.v)||{v:totalRep,n:'Max'}, p=0;
             m.forEach(x=>{ const el=document.getElementById(x.id); if(totalRep>=x.v){ el.style.opacity="1"; p=x.v; }else el.style.opacity="0.2"; });
             
-            const barWidth = Math.max(0,((totalRep-p)/(n.v-p))*100);
-            document.getElementById('medalProgressBar').style.width = barWidth + "%";
-            
-            let gP = 0; m.forEach(x => { if(ghostScore >= x.v) gP = x.v; });
-            let gN = m.find(x => ghostScore < x.v) || {v: ghostScore};
-            const ghostPos = Math.max(0, ((ghostScore-gP)/(gN.v-gP))*100);
-            document.getElementById('ghostMarker').style.left = ghostPos + "%";
-
+            document.getElementById('medalProgressBar').style.width = Math.max(0,((totalRep-p)/(n.v-p))*100) + "%";
             document.getElementById('nextMedalLabel').innerText=`Next: ${n.n} (${n.v.toFixed(1)} Pts)`;
         }
     </script>
 </body>
 </html>
+
+
 
