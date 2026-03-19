@@ -3,45 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Pure Snowball Ledger</title>
+    <title>Reputation: Pure Snowball</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        :root { --success: #28a745; --danger: #dc3545; --primary: #007bff; --gold: #ffd700; --snowball: #00d2ff; }
+        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; --snowball: #00d2ff; }
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
+        
         #auth-screen { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 50px;}
         .auth-input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .auth-btn { background: #000; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        
         #app-ui { display: none; }
         
-        .dashboard { background: #fff; padding: 20px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 5px solid #ddd; text-align: center; }
-        .global-score { font-size: 4rem; font-weight: 900; line-height: 1; letter-spacing: -3px; margin: 10px 0; }
-        .redemption-status { font-size: 0.85rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
+        .dashboard { background: #fff; padding: 20px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 5px solid #ddd; }
+        .global-score { font-size: 3.5rem; font-weight: 900; line-height: 1; letter-spacing: -2px; text-align: center; }
+        .redemption-status { font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-top: 5px; text-transform: uppercase; text-align: center; }
+        
+        .stat-row { display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+        .stat-box-mini { text-align: center; }
+        .high-score { color: var(--gold); font-weight: 900; }
+        .low-score { color: var(--danger); font-weight: 900; }
+        
         .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; display: block; }
         
-        .bar-bg { width: 100%; height: 12px; background: #eee; border-radius: 6px; overflow: hidden; margin: 20px 0 10px 0; }
-        #medalProgressBar { height: 100%; background: linear-gradient(90deg, #00d2ff, #3a7bd5); width: 0%; transition: width 0.8s ease; }
+        .bar-bg { width: 100%; height: 12px; background: #eee; border-radius: 6px; overflow: hidden; margin: 15px 0; position: relative; }
+        #medalProgressBar { height: 100%; background: linear-gradient(90deg, var(--snowball), var(--primary)); width: 0%; transition: width 0.8s ease; }
         
         .calendar-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px; background: white; padding: 10px; border-radius: 12px; }
         .nav-btn { border: none; background: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
-        #viewDateSelector { border: none; font-weight: bold; font-size: 16px; text-align: center; font-family: inherit; cursor: pointer; }
+        #viewDateSelector { border: none; font-weight: bold; font-size: 16px; text-align: center; font-family: inherit; }
         
         .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
-        input[type="text"] { width: 100%; padding: 14px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
         .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
         
         ul { list-style: none; padding: 0; }
-        li { background: #fff; margin-bottom: 12px; padding: 16px; border-radius: 18px; display: flex; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border-left: 6px solid #ccc; transition: 0.2s; }
+        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 6px solid #ccc; }
         li.state-done { border-left-color: var(--success); }
-        li.state-failed { border-left-color: var(--danger); background: #fff8f8; }
+        li.state-failed { border-left-color: var(--danger); }
         
-        .status-box { width: 38px; height: 38px; border-radius: 10px; border: 2px solid #eee; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 15px; font-size: 20px; font-weight: bold; background: white; flex-shrink: 0; transition: 0.2s; }
+        .status-box { width: 34px; height: 34px; border-radius: 8px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; font-size: 18px; font-weight: bold; background: white; flex-shrink: 0; }
         .status-box.done { background: var(--success); border-color: var(--success); color: white; }
         .status-box.failed { background: var(--danger); border-color: var(--danger); color: white; }
 
-        .task-text { flex: 1; font-weight: 700; font-size: 16px; cursor: pointer; color: #333; }
-        .badge { font-size: 0.7rem; font-weight: 800; padding: 5px 10px; border-radius: 8px; margin-left: 6px; white-space: nowrap; }
+        .task-text { flex: 1; font-weight: 600; font-size: 16px; cursor: pointer; }
+        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; }
         #deleteBtn { background: var(--danger); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; display: none; }
     </style>
 </head>
@@ -55,12 +63,26 @@
 
     <div id="app-ui">
         <div class="dashboard">
-            <span class="label">Reputation Ledger</span>
+            <span class="label" style="text-align: center;">Total Reputation</span>
             <div class="global-score" id="globalScore">0.0</div>
             <div id="redemptionMsg" class="redemption-status"></div>
             
             <div class="bar-bg"><div id="medalProgressBar"></div></div>
-            <span class="label" id="nextMedalLabel" style="font-size: 0.6rem;">Ascension Progress</span>
+            
+            <div class="stat-row">
+                <div class="stat-box-mini">
+                    <span class="label">High</span>
+                    <div class="high-score" id="highScore">0</div>
+                </div>
+                <div class="stat-box-mini">
+                    <span class="label">Rank</span>
+                    <div id="rankLabel" style="font-weight: 900;">Recruit</div>
+                </div>
+                <div class="stat-box-mini">
+                    <span class="label">Low</span>
+                    <div class="low-score" id="lowScore">0</div>
+                </div>
+            </div>
         </div>
 
         <div class="calendar-nav">
@@ -70,10 +92,10 @@
         </div>
 
         <div class="input-group">
-            <input type="text" id="taskInput" placeholder="New Mission...">
+            <input type="text" id="taskInput" placeholder="New mission...">
             <div class="controls">
                 <input type="date" id="dateInput">
-                <label style="font-size: 13px; font-weight: 700; cursor: pointer;"><input type="checkbox" id="dailyInput"> DAILY</label>
+                <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
                 <div style="margin-left: auto; display: flex; gap: 5px;">
                     <button onclick="deleteTask()" id="deleteBtn">🗑️</button>
                     <button onclick="addTask()" id="addBtn" style="background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
@@ -82,7 +104,7 @@
         </div>
 
         <ul id="taskList"></ul>
-        <span class="label">🗓️ Future Missions</span>
+        <span class="label">🗓️ Holding Pen</span>
         <ul id="holdingPen"></ul>
     </div>
 
@@ -99,7 +121,7 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let tasks = [], userId = null, editingId = null;
+        let tasks = [], userId = null, editingId = null, highScore = 0, lowScore = 0;
         const getToday = () => new Date().toISOString().split('T')[0];
         document.getElementById('viewDateSelector').value = getToday();
 
@@ -108,11 +130,16 @@
         
         async function sync(){ 
             const doc = await db.collection('users').doc(userId).get(); 
-            if(doc.exists) tasks = doc.data().tasks || []; 
+            if(doc.exists) {
+                const data = doc.data();
+                tasks = data.tasks || []; 
+                highScore = data.highScore || 0;
+                lowScore = data.lowScore || 0;
+            }
             render(); 
         }
 
-        async function save(){ await db.collection('users').doc(userId).set({ tasks }, { merge: true }); }
+        async function save(){ await db.collection('users').doc(userId).set({ tasks, highScore, lowScore }, { merge: true }); }
 
         function changeViewDate(d){ const c=new Date(document.getElementById('viewDateSelector').value); c.setDate(c.getDate()+d); document.getElementById('viewDateSelector').value=c.toISOString().split('T')[0]; render(); }
 
@@ -130,44 +157,17 @@
 
         function deleteTask() {
             if(!editingId) return;
-            if(confirm("Retire this mission? Points already earned will remain.")){
-                tasks = tasks.map(t => t.id === editingId ? {...t, deleted: true} : t);
-                editingId = null; document.getElementById('taskInput').value=''; render(); save();
-            }
+            tasks = tasks.map(t => t.id === editingId ? {...t, deleted: true} : t);
+            editingId = null; document.getElementById('taskInput').value=''; render(); save();
         }
 
-        // --- PURE SNOWBALL MATH ---
-        function calculateTotalScore() {
-            let total = 0;
-            const allDates = [...new Set(tasks.flatMap(t => Object.keys(t.log || {})))].sort();
-            
-            allDates.forEach(date => {
-                let dailySum = 0;
-                tasks.filter(t => !t.deleted).forEach(t => {
-                    const status = t.log[date];
-                    if(!status) return;
-
-                    let streak = 0, fStreak = 0;
-                    const history = Object.keys(t.log).filter(d => d <= date).sort();
-                    history.forEach(d => {
-                        if(t.log[d] === 'DONE') { fStreak = 0; streak++; }
-                        else if(t.log[d] === 'FAIL') { streak = 0; fStreak++; }
-                    });
-
-                    if(status === 'DONE') dailySum += streak;
-                    else if(status === 'FAIL') dailySum -= fStreak;
-                });
-                total += dailySum;
-            });
-            return total;
-        }
-
-        function getIndividualStats(task, targetDate) {
+        // --- PURE SNOWBALL LOGIC ---
+        function calculateStats(t, targetDate) {
             let s = 0, strk = 0, fStrk = 0;
-            const dts = Object.keys(task.log || {}).filter(d => d <= targetDate).sort();
+            const dts = Object.keys(t.log || {}).filter(d => d <= targetDate).sort();
             dts.forEach(d => {
-                if(task.log[d] === 'DONE') { fStrk = 0; strk++; s += strk; }
-                else if(task.log[d] === 'FAIL') { strk = 0; fStrk++; s -= fStrk; }
+                if(t.log[d] === 'DONE') { fStrk = 0; strk++; s += strk; }
+                else if(t.log[d] === 'FAIL') { strk = 0; fStrk++; s -= fStrk; }
             });
             return { s, strk, fStrk };
         }
@@ -182,17 +182,25 @@
             const t=tasks.find(x=>x.id===id); editingId=id; 
             document.getElementById('taskInput').value=t.text; document.getElementById('dailyInput').checked=t.isDaily;
             document.getElementById('addBtn').innerText="SAVE"; document.getElementById('deleteBtn').style.display="block";
-            window.scrollTo(0,0);
         }
 
         function render(){
-            const vD=document.getElementById('viewDateSelector').value, tL=document.getElementById('taskList'), hP=document.getElementById('holdingPen');
-            tL.innerHTML=''; hP.innerHTML='';
+            const vD = document.getElementById('viewDateSelector').value, tL = document.getElementById('taskList'), hP = document.getElementById('holdingPen');
+            tL.innerHTML = ''; hP.innerHTML = ''; 
             
-            const totalRep = calculateTotalScore();
+            let totalRep = 0;
+            // Calculate total based on all time
+            tasks.filter(t => !t.deleted).forEach(t => {
+                const fullHistory = calculateStats(t, '9999-12-31');
+                totalRep += fullHistory.s;
+            });
+
+            // Update High/Low
+            if (totalRep > highScore) highScore = totalRep;
+            if (totalRep < lowScore || (lowScore === 0 && totalRep !== 0)) lowScore = totalRep;
 
             tasks.filter(t => !t.deleted).forEach(t => {
-                const {s, strk, fStrk} = getIndividualStats(t, vD);
+                const {s, strk, fStrk} = calculateStats(t, vD);
                 const isCurrent = t.isDaily || t.date === vD;
                 const st = t.log[vD];
 
@@ -206,7 +214,7 @@
                             ${st==='DONE'?'✓':(st==='FAIL'?'✕':'')}
                         </div>
                         <span class="task-text" onclick="editTask(${t.id})">${t.text}</span>
-                        <span class="badge" style="background:#eee; color:#666">PTS ${s}</span>
+                        <span class="badge" style="background:#eee">PTS ${s}</span>
                         ${strk>0?`<span class="badge" style="background:var(--success); color:white">🔥 ${strk}</span>`:''}
                         ${fStrk>0?`<span class="badge" style="background:var(--danger); color:white">💀 ${fStrk}</span>`:''}
                         ${!st ? `<span class="badge" style="background:var(--snowball); color:white">+${strk+1}</span>` : ''}
@@ -214,22 +222,25 @@
                     tL.appendChild(li);
                 } else {
                     const hli = document.createElement('li');
-                    hli.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${t.text}</span>`;
+                    hli.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${t.text} <small>(${t.date})</small></span>
+                    <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${vD}'}:x);render();save();">☀️</button>`;
                     hP.appendChild(hli);
                 }
             });
 
             document.getElementById('globalScore').innerText = totalRep;
+            document.getElementById('highScore').innerText = highScore;
+            document.getElementById('lowScore').innerText = lowScore;
+
             const redMsg = document.getElementById('redemptionMsg');
             if (totalRep < 0) {
                 const p = Math.min(100, Math.max(0, ((1778 + totalRep) / 1778) * 100));
                 redMsg.innerText = `Redemption: ${p.toFixed(1)}% to surface`;
             } else { redMsg.innerText = "Surface Reached - Ascending"; }
 
-            // Bar Progresses toward 1000 for the next milestone
-            const progress = Math.min(100, Math.max(0, (totalRep / 1000) * 100));
+            const progress = Math.min(100, Math.max(0, ((1778 + totalRep) / 2778) * 100));
             document.getElementById('medalProgressBar').style.width = progress + "%";
-            document.getElementById('nextMedalLabel').innerText = totalRep >= 0 ? "Rank: Ghost Hunter" : "Rank: Revenant";
+            document.getElementById('rankLabel').innerText = totalRep >= 0 ? "Revenant" : "Ghost";
         }
     </script>
 </body>
