@@ -3,54 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Reputation: Pure Snowball</title>
+    <title>Reputation: Ghost Ledger</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; --snowball: #00d2ff; }
+        :root { --success: #28a745; --danger: #dc3545; --warning: #ffc107; --primary: #007bff; --gold: #ffd700; --boss: #6f42c1; --ice: #00f2ff; }
         body { font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #1a1a1a; }
-        
         #auth-screen { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 50px;}
         .auth-input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .auth-btn { background: #000; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
-        
         #app-ui { display: none; }
         
-        .dashboard { background: #fff; padding: 20px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 5px solid #ddd; }
-        .global-score { font-size: 3.5rem; font-weight: 900; line-height: 1; letter-spacing: -2px; text-align: center; }
-        .redemption-status { font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-top: 5px; text-transform: uppercase; text-align: center; }
+        .dashboard { background: #fff; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 25px; border-bottom: 5px solid #ddd; position: relative; }
+        .global-score { font-size: 3rem; font-weight: 900; line-height: 1; }
+        .high-score { font-size: 1.2rem; font-weight: 900; color: var(--gold); }
+        .low-score { font-size: 1.2rem; font-weight: 900; color: var(--danger); }
+        .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 5px; display: block; }
         
-        .stat-row { display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
-        .stat-box-mini { text-align: center; }
-        .high-score { color: var(--gold); font-weight: 900; }
-        .low-score { color: var(--danger); font-weight: 900; }
-        
-        .label { font-size: 0.7rem; text-transform: uppercase; color: #888; letter-spacing: 1.5px; font-weight: 700; display: block; }
-        
-        .bar-bg { width: 100%; height: 12px; background: #eee; border-radius: 6px; overflow: hidden; margin: 15px 0; position: relative; }
-        #medalProgressBar { height: 100%; background: linear-gradient(90deg, var(--snowball), var(--primary)); width: 0%; transition: width 0.8s ease; }
-        
+        .bar-bg { width: 100%; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; margin: 10px 0; position: relative; }
+        #medalProgressBar { height: 100%; background: var(--gold); width: 0%; transition: width 0.6s ease; }
+        #ghostMarker { position: absolute; top: 0; width: 3px; height: 100%; background: rgba(0,0,0,0.4); z-index: 5; transition: left 0.6s ease; }
+
         .calendar-nav { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px; background: white; padding: 10px; border-radius: 12px; }
         .nav-btn { border: none; background: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
-        #viewDateSelector { border: none; font-weight: bold; font-size: 16px; text-align: center; font-family: inherit; }
+        #viewDateSelector { border: none; font-weight: bold; font-size: 16px; font-family: inherit; cursor: pointer; text-align: center; }
         
         .input-group { background: #fff; padding: 18px; border-radius: 16px; margin-bottom: 25px; }
-        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+        input[type="text"] { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 10px; font-size: 16px; outline: none; box-sizing: border-box; }
         .controls { display: flex; gap: 10px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+        input[type="date"], input[type="number"] { border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
+        input[type="number"] { width: 60px; }
         
         ul { list-style: none; padding: 0; }
-        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 6px solid #ccc; }
+        li { background: #fff; margin-bottom: 12px; padding: 14px; border-radius: 16px; display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; border-left: 6px solid #ccc; transition: 0.3s; }
+        
         li.state-done { border-left-color: var(--success); }
         li.state-failed { border-left-color: var(--danger); }
-        
-        .status-box { width: 34px; height: 34px; border-radius: 8px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; font-size: 18px; font-weight: bold; background: white; flex-shrink: 0; }
+        li.state-done .task-text { text-decoration: line-through; opacity: 0.5; }
+
+        .status-box { width: 34px; height: 34px; border-radius: 8px; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 12px; font-size: 18px; font-weight: bold; background: white; flex-shrink: 0; color: #333; }
         .status-box.done { background: var(--success); border-color: var(--success); color: white; }
         .status-box.failed { background: var(--danger); border-color: var(--danger); color: white; }
 
         .task-text { flex: 1; font-weight: 600; font-size: 16px; cursor: pointer; }
-        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; }
-        #deleteBtn { background: var(--danger); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; display: none; }
+        .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; color: #333; }
+        .order-tag { font-size: 0.6rem; color: #aaa; margin-right: 8px; font-weight: bold; }
+        
+        #deleteBtn { background: var(--danger); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; display: none; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -58,30 +58,28 @@
     <div id="auth-screen">
         <input type="email" id="email" class="auth-input" placeholder="Email">
         <input type="password" id="password" class="auth-input" placeholder="Password">
-        <button onclick="handleAuth()" class="auth-btn">Access Ledger</button>
+        <button onclick="handleAuth('login')" class="auth-btn">Access Ledger</button>
     </div>
 
     <div id="app-ui">
         <div class="dashboard">
-            <span class="label" style="text-align: center;">Total Reputation</span>
-            <div class="global-score" id="globalScore">0.0</div>
-            <div id="redemptionMsg" class="redemption-status"></div>
+            <div style="display: flex; justify-content: space-around; text-align: center; gap: 10px;">
+                <div style="flex: 1;"><span class="label">Reputation</span><div class="global-score" id="globalScore">0.0</div></div>
+                <div style="flex: 1;">
+                    <span class="label">High</span><div class="high-score" id="highScore">0.0</div>
+                    <span class="label" style="margin-top:5px;">Low</span><div class="low-score" id="lowScore">0.0</div>
+                </div>
+            </div>
             
-            <div class="bar-bg"><div id="medalProgressBar"></div></div>
-            
-            <div class="stat-row">
-                <div class="stat-box-mini">
-                    <span class="label">High</span>
-                    <div class="high-score" id="highScore">0</div>
-                </div>
-                <div class="stat-box-mini">
-                    <span class="label">Rank</span>
-                    <div id="rankLabel" style="font-weight: 900;">Recruit</div>
-                </div>
-                <div class="stat-box-mini">
-                    <span class="label">Low</span>
-                    <div class="low-score" id="lowScore">0</div>
-                </div>
+            <div class="bar-bg">
+                <div id="medalProgressBar"></div>
+                <div id="ghostMarker"></div>
+            </div>
+            <span class="label" id="nextMedalLabel" style="font-size: 0.55rem; text-align: center;">Next Medal</span>
+
+            <div style="display: flex; justify-content: space-around; margin-top: 5px; font-size: 1.2rem;">
+                <span id="m1" style="opacity:0.2">🥉</span><span id="m2" style="opacity:0.2">🥈</span>
+                <span id="m3" style="opacity:0.2">🥇</span><span id="m4" style="opacity:0.2">👑</span>
             </div>
         </div>
 
@@ -95,6 +93,7 @@
             <input type="text" id="taskInput" placeholder="New mission...">
             <div class="controls">
                 <input type="date" id="dateInput">
+                <input type="number" id="orderInput" placeholder="Pos" title="Task Order Number">
                 <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
                 <div style="margin-left: auto; display: flex; gap: 5px;">
                     <button onclick="deleteTask()" id="deleteBtn">🗑️</button>
@@ -121,55 +120,83 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let tasks = [], userId = null, editingId = null, highScore = 0, lowScore = 0;
+        let tasks = [], userId = null, highScore = 0, lowScore = 0, ghostScore = 0, editingId = null;
         const getToday = () => new Date().toISOString().split('T')[0];
         document.getElementById('viewDateSelector').value = getToday();
 
         auth.onAuthStateChanged(async (u) => { if(u){ userId=u.uid; document.getElementById('auth-screen').style.display='none'; document.getElementById('app-ui').style.display='block'; await sync(); } });
-        async function handleAuth(){ const e=document.getElementById('email').value, p=document.getElementById('password').value; await auth.signInWithEmailAndPassword(e,p).catch(err=>alert(err)); }
+        async function handleAuth(t){ const e=document.getElementById('email').value, p=document.getElementById('password').value; await auth.signInWithEmailAndPassword(e,p).catch(err=>alert(err)); }
         
         async function sync(){ 
             const doc = await db.collection('users').doc(userId).get(); 
-            if(doc.exists) {
-                const data = doc.data();
-                tasks = data.tasks || []; 
-                highScore = data.highScore || 0;
-                lowScore = data.lowScore || 0;
-            }
+            if(doc.exists){ 
+                const d = doc.data(); 
+                tasks = d.tasks || []; 
+                highScore = d.highScore || 0; 
+                lowScore = d.lowScore || 0;
+                ghostScore = d.ghostScore || 0;
+                if(d.lastLoginDate !== getToday()) {
+                    ghostScore = parseFloat(tasks.reduce((acc, t) => acc + calculateStats(t).s, 0).toFixed(1));
+                    await db.collection('users').doc(userId).set({ ghostScore, lastLoginDate: getToday() }, { merge: true });
+                }
+            } 
             render(); 
         }
 
-        async function save(){ await db.collection('users').doc(userId).set({ tasks, highScore, lowScore }, { merge: true }); }
+        async function save(){ await db.collection('users').doc(userId).set({ tasks, highScore, lowScore, ghostScore }, { merge: true }); }
 
         function changeViewDate(d){ const c=new Date(document.getElementById('viewDateSelector').value); c.setDate(c.getDate()+d); document.getElementById('viewDateSelector').value=c.toISOString().split('T')[0]; render(); }
 
         function addTask(){
-            const i=document.getElementById('taskInput'), dIn=document.getElementById('dateInput'), dy=document.getElementById('dailyInput');
+            const i=document.getElementById('taskInput'), dIn=document.getElementById('dateInput'), dy=document.getElementById('dailyInput'), ord=document.getElementById('orderInput');
             if(!i.value) return;
+            const orderVal = parseInt(ord.value) || 999;
+
             if(editingId){
-                tasks=tasks.map(t=>t.id===editingId ? {...t, text:i.value, isDaily:dy.checked} : t);
-                editingId=null; document.getElementById('addBtn').innerText="ADD"; document.getElementById('deleteBtn').style.display="none";
+                tasks=tasks.map(t=>t.id===editingId ? {...t, text:i.value, isDaily:dy.checked, order:orderVal} : t);
+                editingId=null; 
+                document.getElementById('addBtn').innerText="ADD";
+                document.getElementById('deleteBtn').style.display = "none";
             } else {
-                tasks.push({ id:Date.now(), text:i.value, date:dIn.value||getToday(), isDaily:dy.checked, log:{} });
+                tasks.push({ id:Date.now(), text:i.value, date:dIn.value||getToday(), isDaily:dy.checked, order:orderVal, log:{} });
             }
-            i.value=''; dIn.value=''; dy.checked=false; render(); save();
+            i.value=''; dIn.value=''; dy.checked=false; ord.value=''; render(); save();
         }
 
         function deleteTask() {
             if(!editingId) return;
-            tasks = tasks.map(t => t.id === editingId ? {...t, deleted: true} : t);
-            editingId = null; document.getElementById('taskInput').value=''; render(); save();
+            if(confirm("Retire this mission? Points earned will remain in your Ledger history.")){
+                tasks = tasks.map(t => t.id === editingId ? {...t, deleted: true} : t);
+                editingId = null;
+                document.getElementById('taskInput').value = '';
+                document.getElementById('addBtn').innerText = "ADD";
+                document.getElementById('deleteBtn').style.display = "none";
+                render(); save();
+            }
         }
 
-        // --- PURE SNOWBALL LOGIC ---
-        function calculateStats(t, targetDate) {
-            let s = 0, strk = 0, fStrk = 0;
-            const dts = Object.keys(t.log || {}).filter(d => d <= targetDate).sort();
-            dts.forEach(d => {
-                if(t.log[d] === 'DONE') { fStrk = 0; strk++; s += strk; }
-                else if(t.log[d] === 'FAIL') { strk = 0; fStrk++; s -= fStrk; }
+        function calculateStats(t) {
+            let s = 0;
+            let currentWinStreak = 0;
+            let currentLossStreak = 0;
+            const dts = Object.keys(t.log || {}).sort();
+
+            dts.forEach((d) => {
+                const status = t.log[d];
+                if (status === 'DONE') {
+                    currentLossStreak = 0; 
+                    currentWinStreak++;    
+                    s += currentWinStreak; 
+                } else if (status === 'FAIL') {
+                    currentWinStreak = 0;  
+                    currentLossStreak++;   
+                    s -= currentLossStreak; 
+                }
             });
-            return { s, strk, fStrk };
+
+            // strk returns positive for wins, negative for losses
+            const strk = currentWinStreak > 0 ? currentWinStreak : (currentLossStreak > 0 ? -currentLossStreak : 0);
+            return { s, strk };
         }
 
         function cycleStatus(id){
@@ -180,67 +207,84 @@
 
         function editTask(id){ 
             const t=tasks.find(x=>x.id===id); editingId=id; 
-            document.getElementById('taskInput').value=t.text; document.getElementById('dailyInput').checked=t.isDaily;
-            document.getElementById('addBtn').innerText="SAVE"; document.getElementById('deleteBtn').style.display="block";
+            document.getElementById('taskInput').value=t.text; 
+            document.getElementById('dailyInput').checked=t.isDaily;
+            document.getElementById('orderInput').value=t.order || '';
+            document.getElementById('addBtn').innerText="SAVE"; 
+            document.getElementById('deleteBtn').style.display = "block";
+            window.scrollTo(0,0);
         }
 
         function render(){
-            const vD = document.getElementById('viewDateSelector').value, tL = document.getElementById('taskList'), hP = document.getElementById('holdingPen');
-            tL.innerHTML = ''; hP.innerHTML = ''; 
-            
-            let totalRep = 0;
-            // Calculate total based on all time
-            tasks.filter(t => !t.deleted).forEach(t => {
-                const fullHistory = calculateStats(t, '9999-12-31');
-                totalRep += fullHistory.s;
-            });
+            const vD=document.getElementById('viewDateSelector').value, tL=document.getElementById('taskList'), hP=document.getElementById('holdingPen');
+            tL.innerHTML=''; hP.innerHTML=''; let totalRep = 0;
 
-            // Update High/Low
-            if (totalRep > highScore) highScore = totalRep;
-            if (totalRep < lowScore || (lowScore === 0 && totalRep !== 0)) lowScore = totalRep;
+            tasks.forEach(t => totalRep += calculateStats(t).s);
 
-            tasks.filter(t => !t.deleted).forEach(t => {
-                const {s, strk, fStrk} = calculateStats(t, vD);
+            const activeDisplayTasks = [];
+            const holdingDisplayTasks = [];
+
+            tasks.forEach(t => {
+                if (t.deleted) return;
                 const isCurrent = t.isDaily || t.date === vD;
-                const st = t.log[vD];
-
-                if(isCurrent){
-                    const li = document.createElement('li');
-                    if(st==='DONE') li.classList.add('state-done');
-                    if(st==='FAIL') li.classList.add('state-failed');
-
-                    li.innerHTML=`
-                        <div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">
-                            ${st==='DONE'?'✓':(st==='FAIL'?'✕':'')}
-                        </div>
-                        <span class="task-text" onclick="editTask(${t.id})">${t.text}</span>
-                        <span class="badge" style="background:#eee">PTS ${s}</span>
-                        ${strk>0?`<span class="badge" style="background:var(--success); color:white">🔥 ${strk}</span>`:''}
-                        ${fStrk>0?`<span class="badge" style="background:var(--danger); color:white">💀 ${fStrk}</span>`:''}
-                        ${!st ? `<span class="badge" style="background:var(--snowball); color:white">+${strk+1}</span>` : ''}
-                    `;
-                    tL.appendChild(li);
-                } else {
-                    const hli = document.createElement('li');
-                    hli.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${t.text} <small>(${t.date})</small></span>
-                    <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${vD}'}:x);render();save();">☀️</button>`;
-                    hP.appendChild(hli);
-                }
+                if (isCurrent) activeDisplayTasks.push(t);
+                else holdingDisplayTasks.push(t);
             });
 
-            document.getElementById('globalScore').innerText = totalRep;
-            document.getElementById('highScore').innerText = highScore;
-            document.getElementById('lowScore').innerText = lowScore;
+            activeDisplayTasks.sort((a, b) => (a.order || 999) - (b.order || 999) || a.id - b.id);
+            holdingDisplayTasks.sort((a, b) => new Date(a.date) - new Date(b.date) || (a.order || 999) - (b.order || 999));
 
-            const redMsg = document.getElementById('redemptionMsg');
-            if (totalRep < 0) {
-                const p = Math.min(100, Math.max(0, ((1778 + totalRep) / 1778) * 100));
-                redMsg.innerText = `Redemption: ${p.toFixed(1)}% to surface`;
-            } else { redMsg.innerText = "Surface Reached - Ascending"; }
+            activeDisplayTasks.forEach(t => {
+                const {s, strk} = calculateStats(t);
+                const st = t.log ? t.log[vD] : null;
+                const li = document.createElement('li');
+                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
+                
+                if(st==='DONE') li.classList.add('state-done'); 
+                if(st==='FAIL') li.classList.add('state-failed');
 
-            const progress = Math.min(100, Math.max(0, ((1778 + totalRep) / 2778) * 100));
-            document.getElementById('medalProgressBar').style.width = progress + "%";
-            document.getElementById('rankLabel').innerText = totalRep >= 0 ? "Revenant" : "Ghost";
+                // Streak Styling logic
+                const isWinning = strk > 0;
+                const isLosing = strk < 0;
+                const streakColor = isWinning ? '#fff3cd' : (isLosing ? '#f8d7da' : '#eee');
+                const streakIcon = isWinning ? '🔥' : (isLosing ? '❄️' : '');
+
+                li.innerHTML=`<div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">${st==='DONE'?'✓':(st==='FAIL'?'✕':'')}</div>
+                <span class="task-text" onclick="editTask(${t.id})">${orderDisp}${t.text}</span>
+                <span class="badge">PTS ${s.toFixed(1)}</span>
+                ${strk !== 0 ? `<span class="badge" style="background:${streakColor}">${streakIcon} ${Math.abs(strk)}</span>` : ''}`;
+                tL.appendChild(li);
+            });
+
+            holdingDisplayTasks.forEach(t => {
+                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
+                const li = document.createElement('li');
+                li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${orderDisp}${t.text} <small>(${t.date})</small></span>
+                <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${getToday()}'}:x);render();save();">☀️</button>`;
+                hP.appendChild(li);
+            });
+
+            // Update All-Time Scores
+            if(totalRep > highScore) highScore = totalRep;
+            if(totalRep < lowScore || (lowScore === 0 && totalRep !== 0)) lowScore = totalRep;
+            
+            document.getElementById('globalScore').innerText = totalRep.toFixed(1);
+            document.getElementById('highScore').innerText = highScore.toFixed(1);
+            document.getElementById('lowScore').innerText = lowScore.toFixed(1);
+
+            const m=[{id:'m1',v:50,n:'Bronze'},{id:'m2',v:250,n:'Silver'},{id:'m3',v:750,n:'Gold'},{id:'m4',v:1500,n:'Legend'}];
+            let n=m.find(x=>totalRep<x.v)||{v:totalRep,n:'Max'}, p=0;
+            m.forEach(x=>{ const el=document.getElementById(x.id); if(totalRep>=x.v){ el.style.opacity="1"; p=x.v; }else el.style.opacity="0.2"; });
+            
+            const barWidth = Math.max(0, Math.min(100, ((totalRep-p)/(n.v-p))*100));
+            document.getElementById('medalProgressBar').style.width = barWidth + "%";
+            
+            let gP = 0; m.forEach(x => { if(ghostScore >= x.v) gP = x.v; });
+            let gN = m.find(x => ghostScore < x.v) || {v: ghostScore};
+            const ghostPos = Math.max(0, Math.min(100, ((ghostScore-gP)/(gN.v-gP))*100));
+            document.getElementById('ghostMarker').style.left = ghostPos + "%";
+
+            document.getElementById('nextMedalLabel').innerText=`Next: ${n.n} (${n.v.toFixed(1)} Pts)`;
         }
     </script>
 </body>
