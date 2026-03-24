@@ -48,9 +48,8 @@
 
         .task-text { flex: 1; font-weight: 600; font-size: 16px; cursor: pointer; }
         .badge { font-size: 0.7rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; margin-left: 5px; white-space: nowrap; color: #333; }
-        .order-tag { font-size: 0.6rem; color: #aaa; margin-right: 8px; font-weight: bold; }
         
-        #deleteBtn { background: var(--danger); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; display: none; margin-left: 5px; }
+        #deleteBtn, #todayOnlyBtn { display: none; }
     </style>
 </head>
 <body>
@@ -76,11 +75,6 @@
                 <div id="ghostMarker"></div>
             </div>
             <span class="label" id="nextMedalLabel" style="font-size: 0.55rem; text-align: center;">Next Medal</span>
-
-            <div style="display: flex; justify-content: space-around; margin-top: 5px; font-size: 1.2rem;">
-                <span id="m1" style="opacity:0.2">🥉</span><span id="m2" style="opacity:0.2">🥈</span>
-                <span id="m3" style="opacity:0.2">🥇</span><span id="m4" style="opacity:0.2">👑</span>
-            </div>
         </div>
 
         <div class="calendar-nav">
@@ -93,11 +87,12 @@
             <input type="text" id="taskInput" placeholder="New mission...">
             <div class="controls">
                 <input type="date" id="dateInput">
-                <input type="number" id="orderInput" placeholder="Pos" title="Task Order Number">
+                <input type="number" id="orderInput" placeholder="Pos">
                 <label style="font-size: 12px; font-weight: 700;"><input type="checkbox" id="dailyInput"> DAILY</label>
                 <div style="margin-left: auto; display: flex; gap: 5px;">
-                    <button onclick="deleteTask()" id="deleteBtn">🗑️</button>
-                    <button onclick="addTask()" id="addBtn" style="background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
+                    <button onclick="deleteTask()" id="deleteBtn" style="background: var(--danger); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer;">🗑️</button>
+                    <button onclick="updateTask(true)" id="todayOnlyBtn" style="background: #555; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer;">TODAY ONLY</button>
+                    <button onclick="updateTask(false)" id="addBtn" style="background: black; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 800; cursor: pointer;">ADD</button>
                 </div>
             </div>
         </div>
@@ -135,10 +130,6 @@
                 highScore = d.highScore || 0; 
                 lowScore = d.lowScore || 0;
                 ghostScore = d.ghostScore || 0;
-                if(d.lastLoginDate !== getToday()) {
-                    ghostScore = parseFloat(tasks.reduce((acc, t) => acc + calculateStats(t).s, 0).toFixed(1));
-                    await db.collection('users').doc(userId).set({ ghostScore, lastLoginDate: getToday() }, { merge: true });
-                }
             } 
             render(); 
         }
@@ -147,144 +138,132 @@
 
         function changeViewDate(d){ const c=new Date(document.getElementById('viewDateSelector').value); c.setDate(c.getDate()+d); document.getElementById('viewDateSelector').value=c.toISOString().split('T')[0]; render(); }
 
-        function addTask(){
-            const i=document.getElementById('taskInput'), dIn=document.getElementById('dateInput'), dy=document.getElementById('dailyInput'), ord=document.getElementById('orderInput');
-            if(!i.value) return;
-            const orderVal = parseInt(ord.value) || 999;
-
-            if(editingId){
-                tasks=tasks.map(t=>t.id===editingId ? {...t, text:i.value, isDaily:dy.checked, order:orderVal} : t);
-                editingId=null; 
-                document.getElementById('addBtn').innerText="ADD";
-                document.getElementById('deleteBtn').style.display = "none";
-            } else {
-                tasks.push({ id:Date.now(), text:i.value, date:dIn.value||getToday(), isDaily:dy.checked, order:orderVal, log:{} });
-            }
-            i.value=''; dIn.value=''; dy.checked=false; ord.value=''; render(); save();
-        }
-
-        function deleteTask() {
-            if(!editingId) return;
-            if(confirm("Retire this mission? Points earned will remain in your Ledger history.")){
-                tasks = tasks.map(t => t.id === editingId ? {...t, deleted: true} : t);
-                editingId = null;
-                document.getElementById('taskInput').value = '';
-                document.getElementById('addBtn').innerText = "ADD";
-                document.getElementById('deleteBtn').style.display = "none";
-                render(); save();
-            }
+        function getStatus(t, date) {
+            const entry = t.log ? t.log[date] : null;
+            if (!entry) return null;
+            return typeof entry === 'object' ? entry.status : entry;
         }
 
         function calculateStats(t) {
-            let s = 0;
-            let currentWinStreak = 0;
-            let currentLossStreak = 0;
+            let s = 0, win = 0, loss = 0;
             const dts = Object.keys(t.log || {}).sort();
-
-            dts.forEach((d) => {
-                const status = t.log[d];
-                if (status === 'DONE') {
-                    currentLossStreak = 0; 
-                    currentWinStreak++;    
-                    s += currentWinStreak; 
-                } else if (status === 'FAIL') {
-                    currentWinStreak = 0;  
-                    currentLossStreak++;   
-                    s -= currentLossStreak; 
-                }
+            dts.forEach(d => {
+                const status = getStatus(t, d);
+                if (status === 'DONE') { loss = 0; win++; s += win; }
+                else if (status === 'FAIL') { win = 0; loss++; s -= loss; }
             });
-
-            // strk returns positive for wins, negative for losses
-            const strk = currentWinStreak > 0 ? currentWinStreak : (currentLossStreak > 0 ? -currentLossStreak : 0);
-            return { s, strk };
+            return { s, strk: win > 0 ? win : (loss > 0 ? -loss : 0) };
         }
 
-        function cycleStatus(id){
-            const date=document.getElementById('viewDateSelector').value;
-            tasks=tasks.map(t=>{ if(t.id===id){ t.log=t.log||{}; const c=t.log[date]; if(!c)t.log[date]='DONE'; else if(c==='DONE')t.log[date]='FAIL'; else delete t.log[date]; } return t; });
-            render(); save();
+        function updateTask(todayOnly = false) {
+            const i = document.getElementById('taskInput'), dy = document.getElementById('dailyInput'), 
+                  ord = document.getElementById('orderInput'), vD = document.getElementById('viewDateSelector').value;
+            if(!i.value) return;
+
+            if(editingId) {
+                tasks = tasks.map(t => {
+                    if(t.id === editingId) {
+                        if(todayOnly) {
+                            t.log = t.log || {};
+                            const currentSt = getStatus(t, vD);
+                            t.log[vD] = { status: currentSt, text: i.value };
+                        } else {
+                            t.text = i.value; t.isDaily = dy.checked; t.order = parseInt(ord.value) || 999;
+                        }
+                    }
+                    return t;
+                });
+            } else {
+                tasks.push({ id: Date.now(), text: i.value, date: vD, isDaily: dy.checked, order: parseInt(ord.value) || 999, log: {} });
+            }
+            clearEditor(); render(); save();
         }
 
-        function editTask(id){ 
-            const t=tasks.find(x=>x.id===id); editingId=id; 
-            document.getElementById('taskInput').value=t.text; 
-            document.getElementById('dailyInput').checked=t.isDaily;
-            document.getElementById('orderInput').value=t.order || '';
-            document.getElementById('addBtn').innerText="SAVE"; 
+        function clearEditor() {
+            editingId = null;
+            document.getElementById('taskInput').value = '';
+            document.getElementById('orderInput').value = '';
+            document.getElementById('addBtn').innerText = "ADD";
+            document.getElementById('deleteBtn').style.display = "none";
+            document.getElementById('todayOnlyBtn').style.display = "none";
+        }
+
+        function editTask(id) {
+            const t = tasks.find(x => x.id === id);
+            const vD = document.getElementById('viewDateSelector').value;
+            editingId = id;
+            const override = (t.log && t.log[vD] && typeof t.log[vD] === 'object') ? t.log[vD].text : null;
+            
+            document.getElementById('taskInput').value = override || t.text;
+            document.getElementById('dailyInput').checked = t.isDaily;
+            document.getElementById('orderInput').value = t.order || '';
+            document.getElementById('addBtn').innerText = "UPDATE ALL";
+            document.getElementById('todayOnlyBtn').style.display = "block";
             document.getElementById('deleteBtn').style.display = "block";
             window.scrollTo(0,0);
         }
 
-        function render(){
-            const vD=document.getElementById('viewDateSelector').value, tL=document.getElementById('taskList'), hP=document.getElementById('holdingPen');
-            tL.innerHTML=''; hP.innerHTML=''; let totalRep = 0;
+        function cycleStatus(id) {
+            const vD = document.getElementById('viewDateSelector').value;
+            tasks = tasks.map(t => {
+                if(t.id === id) {
+                    t.log = t.log || {};
+                    let entry = t.log[vD];
+                    let curStatus = typeof entry === 'object' ? entry.status : entry;
+                    let next = !curStatus ? 'DONE' : (curStatus === 'DONE' ? 'FAIL' : null);
+                    
+                    if(typeof entry === 'object') entry.status = next;
+                    else t.log[vD] = next;
+                    if(!t.log[vD]) delete t.log[vD];
+                }
+                return t;
+            });
+            render(); save();
+        }
 
-            tasks.forEach(t => totalRep += calculateStats(t).s);
+        function deleteTask() {
+            if(confirm("Retire mission?")) {
+                tasks = tasks.map(t => t.id === editingId ? {...t, deleted: true} : t);
+                clearEditor(); render(); save();
+            }
+        }
 
-            const activeDisplayTasks = [];
-            const holdingDisplayTasks = [];
+        function render() {
+            const vD = document.getElementById('viewDateSelector').value, tL = document.getElementById('taskList'), hP = document.getElementById('holdingPen');
+            tL.innerHTML = ''; hP.innerHTML = ''; let totalRep = 0;
 
             tasks.forEach(t => {
                 if (t.deleted) return;
-                const isCurrent = t.isDaily || t.date === vD;
-                if (isCurrent) activeDisplayTasks.push(t);
-                else holdingDisplayTasks.push(t);
-            });
-
-            activeDisplayTasks.sort((a, b) => (a.order || 999) - (b.order || 999) || a.id - b.id);
-            holdingDisplayTasks.sort((a, b) => new Date(a.date) - new Date(b.date) || (a.order || 999) - (b.order || 999));
-
-            activeDisplayTasks.forEach(t => {
                 const {s, strk} = calculateStats(t);
-                const st = t.log ? t.log[vD] : null;
-                const li = document.createElement('li');
-                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
-                
-                if(st==='DONE') li.classList.add('state-done'); 
-                if(st==='FAIL') li.classList.add('state-failed');
+                totalRep += s;
 
-                // Streak Styling logic
-                const isWinning = strk > 0;
-                const isLosing = strk < 0;
-                const streakColor = isWinning ? '#fff3cd' : (isLosing ? '#f8d7da' : '#eee');
-                const streakIcon = isWinning ? '🔥' : (isLosing ? '❄️' : '');
+                const isCurrent = t.isDaily || t.date === vD;
+                if (isCurrent) {
+                    const entry = t.log ? t.log[vD] : null;
+                    const displayName = (typeof entry === 'object' && entry.text) ? entry.text : t.text;
+                    const st = getStatus(t, vD);
+                    const li = document.createElement('li');
+                    if(st==='DONE') li.classList.add('state-done');
+                    if(st==='FAIL') li.classList.add('state-failed');
 
-                li.innerHTML=`<div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">${st==='DONE'?'✓':(st==='FAIL'?'✕':'')}</div>
-                <span class="task-text" onclick="editTask(${t.id})">${orderDisp}${t.text}</span>
-                <span class="badge">PTS ${s.toFixed(1)}</span>
-                ${strk !== 0 ? `<span class="badge" style="background:${streakColor}">${streakIcon} ${Math.abs(strk)}</span>` : ''}`;
-                tL.appendChild(li);
+                    li.innerHTML = `
+                        <div class="status-box ${st==='DONE'?'done':(st==='FAIL'?'failed':'')}" onclick="cycleStatus(${t.id})">${st==='DONE'?'✓':(st==='FAIL'?'✕':'')}</div>
+                        <span class="task-text" onclick="editTask(${t.id})">${t.order && t.order!==999?`#${t.order} `:''}${displayName}</span>
+                        <span class="badge">PTS ${s.toFixed(1)}</span>
+                        ${strk !== 0 ? `<span class="badge" style="background:${strk>0?'#fff3cd':'#f8d7da'}">${strk>0?'🔥':'❄️'} ${Math.abs(strk)}</span>` : ''}`;
+                    tL.appendChild(li);
+                } else {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="task-text" onclick="editTask(${t.id})">${t.text} <small>(${t.date})</small></span>
+                    <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${vD}'}:x);render();save();">☀️</button>`;
+                    hP.appendChild(li);
+                }
             });
 
-            holdingDisplayTasks.forEach(t => {
-                const orderDisp = t.order && t.order !== 999 ? `<span class="order-tag">#${t.order}</span>` : '';
-                const li = document.createElement('li');
-                li.innerHTML=`<span class="task-text" onclick="editTask(${t.id})">${orderDisp}${t.text} <small>(${t.date})</small></span>
-                <button class="nav-btn" onclick="tasks=tasks.map(x=>x.id===${t.id}?{...x,date:'${getToday()}'}:x);render();save();">☀️</button>`;
-                hP.appendChild(li);
-            });
-
-            // Update All-Time Scores
             if(totalRep > highScore) highScore = totalRep;
-            if(totalRep < lowScore || (lowScore === 0 && totalRep !== 0)) lowScore = totalRep;
-            
             document.getElementById('globalScore').innerText = totalRep.toFixed(1);
             document.getElementById('highScore').innerText = highScore.toFixed(1);
             document.getElementById('lowScore').innerText = lowScore.toFixed(1);
-
-            const m=[{id:'m1',v:50,n:'Bronze'},{id:'m2',v:250,n:'Silver'},{id:'m3',v:750,n:'Gold'},{id:'m4',v:1500,n:'Legend'}];
-            let n=m.find(x=>totalRep<x.v)||{v:totalRep,n:'Max'}, p=0;
-            m.forEach(x=>{ const el=document.getElementById(x.id); if(totalRep>=x.v){ el.style.opacity="1"; p=x.v; }else el.style.opacity="0.2"; });
-            
-            const barWidth = Math.max(0, Math.min(100, ((totalRep-p)/(n.v-p))*100));
-            document.getElementById('medalProgressBar').style.width = barWidth + "%";
-            
-            let gP = 0; m.forEach(x => { if(ghostScore >= x.v) gP = x.v; });
-            let gN = m.find(x => ghostScore < x.v) || {v: ghostScore};
-            const ghostPos = Math.max(0, Math.min(100, ((ghostScore-gP)/(gN.v-gP))*100));
-            document.getElementById('ghostMarker').style.left = ghostPos + "%";
-
-            document.getElementById('nextMedalLabel').innerText=`Next: ${n.n} (${n.v.toFixed(1)} Pts)`;
         }
     </script>
 </body>
